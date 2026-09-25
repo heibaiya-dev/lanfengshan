@@ -1,21 +1,4 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  ExternalLink,
-  GitBranch,
-  Info,
-  Layers3,
-  MoveHorizontal,
-  Music2,
-  Power,
-  Settings,
-  Timer,
-  Volume2,
-  VolumeX,
-  Wind,
-} from "lucide-react";
 import { MaterialMenu } from "./MaterialMenu";
 import { AUDIO_OPTIONS, audioUrl, BLADE_OPTIONS } from "./mediaCatalog";
 import { useFanAudio } from "./useFanAudio";
@@ -51,7 +34,7 @@ function readSettings(): FanSettings {
     speed: 2,
     oscillating: false,
     muted: false,
-    bladeId: "goggle",
+    bladeId: "blade-1",
     audioId: "running",
     timerEnd: null,
     timerMinutes: 0,
@@ -162,12 +145,8 @@ function App() {
       <div className="utility-bar">
         <span className="utility-spacer" />
         <div className="utility-actions">
-          <button type="button" className="utility-button" aria-label="设置" onClick={() => setScreen("settings")}>
-            <Settings size={19} strokeWidth={2} />
-          </button>
-          <button type="button" className="utility-button" aria-label="关于" onClick={() => setScreen("about")}>
-            <Info size={19} strokeWidth={2} />
-          </button>
+          <button type="button" className="utility-button" onClick={() => setScreen("settings")}>设置</button>
+          <button type="button" className="utility-button" onClick={() => setScreen("about")}>关于</button>
         </div>
       </div>
     );
@@ -176,10 +155,7 @@ function App() {
   function renderPageHeader(title: string) {
     return (
       <div className="subpage-header">
-        <button type="button" className="back-button" onClick={() => setScreen("fan")} aria-label="返回风扇">
-          <ArrowLeft size={21} />
-          <span>返回</span>
-        </button>
+        <button type="button" className="back-button" onClick={() => setScreen("fan")} aria-label="返回风扇">返回</button>
         <h1>{title}</h1>
         <span className="header-spacer" />
       </div>
@@ -192,7 +168,6 @@ function App() {
         {renderPageHeader("设置")}
         <section className="settings-card" aria-labelledby="audio-setting-title">
           <div className="settings-heading">
-            <div className="settings-icon"><Music2 size={19} /></div>
             <div>
               <h2 id="audio-setting-title">运行音频</h2>
               <p>风扇开启时循环播放的声音</p>
@@ -208,7 +183,7 @@ function App() {
                 key={option.id}
               >
                 <span className="choice-copy"><strong>{option.label}</strong><small>{option.note}</small></span>
-                {settings.audioId === option.id && <Check size={19} className="choice-check" />}
+                {settings.audioId === option.id && <span className="choice-selected">已选</span>}
               </button>
             ))}
           </div>
@@ -216,17 +191,16 @@ function App() {
 
         <section className="settings-card" aria-labelledby="blade-setting-title">
           <div className="settings-heading">
-            <div className="settings-icon blade-settings-icon"><Layers3 size={19} /></div>
             <div>
-              <h2 id="blade-setting-title">扇叶立绘</h2>
-              <p>选择风扇旋转时使用的角色</p>
+              <h2 id="blade-setting-title">扇叶</h2>
+              <p>选择风扇旋转时使用的图片</p>
             </div>
           </div>
           <div className="blade-grid">
             {BLADE_OPTIONS.map((option) => (
               <button
                 type="button"
-                className={`blade-choice ${settings.bladeId === option.id ? "is-selected" : ""}`}
+                className={`blade-choice blade-choice-${option.id} ${settings.bladeId === option.id ? "is-selected" : ""}`}
                 aria-pressed={settings.bladeId === option.id}
                 onClick={() => updatePreference("bladeId", option.id)}
                 key={option.id}
@@ -234,14 +208,13 @@ function App() {
                 <span className="blade-thumb"><img src={`/assets/${option.file}`} alt="" /></span>
                 <strong>{option.label}</strong>
                 <small>{option.note}</small>
-                {settings.bladeId === option.id && <span className="blade-check"><Check size={14} /></span>}
               </button>
             ))}
           </div>
         </section>
 
         <button type="button" className="about-list-button" onClick={() => setScreen("about")}>
-          <Info size={18} /><span>关于电峰扇</span><ChevronDown size={17} className="about-chevron" />
+          <span>关于电峰扇</span>
         </button>
       </div>
     );
@@ -262,9 +235,7 @@ function App() {
           <p>各位群友（测试和音乐）</p>
         </div>
         <a className="github-card" href="https://github.com/heibaiya-dev/lanfengshan.git" target="_blank" rel="noreferrer">
-          <GitBranch size={20} />
           <span><strong>GitHub 仓库</strong><small>heibaiya-dev/lanfengshan</small></span>
-          <ExternalLink size={17} />
         </a>
       </div>
     );
@@ -287,7 +258,7 @@ function App() {
                     style={{ "--blade-angle": `${angle}deg` } as CSSProperties}
                     key={angle}
                   >
-                    <img src={`/assets/${selectedBlade.file}`} alt="" draggable={false} />
+                    <img className={`blade-image blade-image-${selectedBlade.id}`} src={`/assets/${selectedBlade.file}`} alt="" draggable={false} />
                   </div>
                 ))}
               </div>
@@ -310,7 +281,6 @@ function App() {
               aria-pressed={settings.isOn}
               title={settings.isOn ? "关闭电峰扇" : "开启电峰扇"}
             >
-              <Power size={24} strokeWidth={2.1} aria-hidden="true" />
               <span>{settings.isOn ? "关闭" : "开启"}</span>
             </button>
             <MaterialMenu
@@ -324,11 +294,7 @@ function App() {
                 className="toolbar-button toolbar-speed"
                 aria-label={`风速，当前 ${settings.speed} 档`}
               >
-                <Wind size={24} strokeWidth={2.1} aria-hidden="true" />
-                <span className="speed-label">
-                  风速 · {settings.speed} 档
-                  <ChevronDown className="menu-chevron" size={13} aria-hidden="true" />
-                </span>
+                <span className="speed-label">风速 · {settings.speed} 档</span>
               </button>
             </MaterialMenu>
             <button
@@ -339,7 +305,6 @@ function App() {
               aria-checked={settings.oscillating}
               onClick={() => setSettings((current) => ({ ...current, oscillating: !current.oscillating }))}
             >
-              <MoveHorizontal size={24} strokeWidth={2.1} aria-hidden="true" />
               <span>摇头{settings.oscillating ? "开" : "关"}</span>
             </button>
             <button
@@ -349,13 +314,11 @@ function App() {
               aria-label={settings.muted ? "取消静音" : "静音"}
               aria-pressed={settings.muted}
             >
-              {settings.muted ? <VolumeX size={24} strokeWidth={2.1} aria-hidden="true" /> : <Volume2 size={24} strokeWidth={2.1} aria-hidden="true" />}
               <span>{settings.muted ? "静音" : "声音"}</span>
             </button>
           </div>
 
           <div className="timer-control">
-            <Timer size={17} strokeWidth={1.8} aria-hidden="true" />
             <span>{settings.timerEnd ? `剩余 ${formatRemaining(remaining)}` : "定时关闭"}</span>
             <MaterialMenu
               label="定时关闭"
@@ -372,7 +335,6 @@ function App() {
                 aria-label="定时关闭时间"
               >
                 {settings.timerMinutes === 0 ? "未设置" : settings.timerMinutes < 60 ? `${settings.timerMinutes} 分钟` : `${settings.timerMinutes / 60} 小时`}
-                <ChevronDown className="menu-chevron" size={14} aria-hidden="true" />
               </button>
             </MaterialMenu>
           </div>

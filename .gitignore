@@ -17,6 +17,7 @@ src-tauri/gen/android/keystore.properties
 src-tauri/target/
 *.jks
 *.keystore
+*.mp4
 v1-*.png
 *.local
 
