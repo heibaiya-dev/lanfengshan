@@ -170,11 +170,11 @@ function App() {
     );
   }
 
-  function renderPageHeader(title: string) {
+  function renderPageHeader(title: string, showBackIcon = true) {
     return (
       <div className="subpage-header">
         <button type="button" className="back-button" onClick={() => setScreen("fan")} aria-label="返回风扇">
-          <ArrowLeft size={21} />
+          {showBackIcon && <ArrowLeft size={21} />}
           <span>返回</span>
         </button>
         <h1>{title}</h1>
@@ -186,7 +186,7 @@ function App() {
   function renderSettings() {
     return (
       <div className="subpage settings-page">
-        {renderPageHeader("设置")}
+        {renderPageHeader("设置", false)}
         <section className="settings-card" aria-labelledby="audio-setting-title">
           <div className="settings-heading">
             <div>
