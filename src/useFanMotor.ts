@@ -109,13 +109,23 @@ export function useFanMotor(isOn: boolean, rpm: number) {
 
     motor.schedule = schedule;
     document.addEventListener("visibilitychange", onVisibilityChange);
-    motionPreference.addEventListener("change", onMotionPreferenceChange);
+    // Older Android WebViews expose the legacy MediaQueryList listener API.
+    // Keep the fallback so reduced-motion handling does not fail during mount.
+    if (typeof motionPreference.addEventListener === "function") {
+      motionPreference.addEventListener("change", onMotionPreferenceChange);
+    } else {
+      motionPreference.addListener(onMotionPreferenceChange);
+    }
 
     return () => {
       cancelFrame();
       motor.schedule = null;
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      motionPreference.removeEventListener("change", onMotionPreferenceChange);
+      if (typeof motionPreference.removeEventListener === "function") {
+        motionPreference.removeEventListener("change", onMotionPreferenceChange);
+      } else {
+        motionPreference.removeListener(onMotionPreferenceChange);
+      }
     };
   }, []);
 

@@ -8,6 +8,13 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [react()],
 
+  // Android System WebView on older devices is often based on Chromium 90.
+  // Keep the generated JavaScript and CSS within the APIs/syntax it supports.
+  build: {
+    target: "chrome90",
+    cssTarget: "chrome90",
+  },
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

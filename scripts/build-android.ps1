@@ -1,3 +1,8 @@
+param(
+    [ValidateSet("aarch64", "armv7")]
+    [string]$Architecture = "aarch64"
+)
+
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $targetDir = Join-Path $projectRoot "src-tauri\target"
@@ -13,9 +18,22 @@ if (-not $env:ANDROID_HOME) {
 }
 
 $ndkHome = if ($env:NDK_HOME) { $env:NDK_HOME } elseif ($env:ANDROID_NDK_HOME) { $env:ANDROID_NDK_HOME } else { Join-Path $env:ANDROID_HOME "ndk\android-ndk-r27" }
-$clang = Join-Path $ndkHome "toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe"
+$clangBin = Join-Path $ndkHome "toolchains\llvm\prebuilt\windows-x86_64\bin"
+$architectureConfig = @{
+    aarch64 = @{
+        clangTarget = "aarch64-linux-android"
+        linkerVariable = "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"
+        abi = "arm64-v8a"
+    }
+    armv7 = @{
+        clangTarget = "armv7a-linux-androideabi"
+        linkerVariable = "CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER"
+        abi = "armeabi-v7a"
+    }
+}[$Architecture]
+$clang = Join-Path $clangBin "clang.exe"
 if (-not (Test-Path -LiteralPath $clang -PathType Leaf)) {
-    throw "Android NDK clang.exe not found at $clang. Set NDK_HOME to the installed NDK."
+    throw "Android NDK linker not found at $clang. Set NDK_HOME to the installed NDK."
 }
 
 $sysroot = (& rustc --print sysroot).Trim()
@@ -32,12 +50,12 @@ if (-not (Test-Path -LiteralPath $sysrootAlias)) {
 
 $env:TEMP = $tempDir
 $env:TMP = $tempDir
-$env:CARGO_ENCODED_RUSTFLAGS = @("--sysroot", $sysrootAlias, "-Clink-arg=--target=aarch64-linux-android24") -join [char]31
-$env:CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER = $clang
+$env:CARGO_ENCODED_RUSTFLAGS = @("--sysroot", $sysrootAlias, "-Clink-arg=--target=$($architectureConfig.clangTarget)24") -join [char]31
+Set-Item -Path "Env:$($architectureConfig.linkerVariable)" -Value $clang
 
 Push-Location $projectRoot
 try {
-    & npx tauri android build --target aarch64 --apk --ci @args
+    & npx tauri android build --target $Architecture --apk --ci @args
     $buildExitCode = $LASTEXITCODE
     if ($buildExitCode -ne 0) {
         exit $buildExitCode
@@ -54,7 +72,7 @@ try {
 
     $releaseDir = Join-Path $projectRoot "releases"
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-    $deliverable = Join-Path $releaseDir "lanfengshan-1.0.0-arm64-release.apk"
+    $deliverable = Join-Path $releaseDir "lanfengshan-1.0.0-$($architectureConfig.abi)-release.apk"
     Copy-Item -LiteralPath $releaseApk.FullName -Destination $deliverable -Force
 
     $buildTools = Get-ChildItem -LiteralPath (Join-Path $env:ANDROID_HOME "build-tools") -Directory |
@@ -69,8 +87,8 @@ try {
     if ($badging -notmatch "package: name='com\.heibai\.hyw\.lanfengshan'") {
         throw "The release APK package identifier is not com.heibai.hyw.lanfengshan."
     }
-    if ($badging -notmatch "native-code:.*arm64-v8a") {
-        throw "The release APK does not contain the arm64-v8a native library."
+    if ($badging -notmatch "native-code:.*$($architectureConfig.abi)") {
+        throw "The release APK does not contain the $($architectureConfig.abi) native library."
     }
     if ($badging -match "application-debuggable") {
         throw "The release APK is marked debuggable."
