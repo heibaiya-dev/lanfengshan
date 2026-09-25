@@ -5,6 +5,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
+$packageManifest = Get-Content -LiteralPath (Join-Path $projectRoot "package.json") -Raw | ConvertFrom-Json
+$appVersion = [string]$packageManifest.version
+if ([string]::IsNullOrWhiteSpace($appVersion)) {
+    throw "package.json does not define an application version."
+}
 $targetDir = Join-Path $projectRoot "src-tauri\target"
 $tempDir = Join-Path $targetDir "tmp"
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
@@ -72,7 +77,7 @@ try {
 
     $releaseDir = Join-Path $projectRoot "releases"
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-    $deliverable = Join-Path $releaseDir "lanfengshan-1.0.0-$($architectureConfig.abi)-release.apk"
+    $deliverable = Join-Path $releaseDir "lanfengshan-$appVersion-$($architectureConfig.abi)-release.apk"
     Copy-Item -LiteralPath $releaseApk.FullName -Destination $deliverable -Force
 
     $buildTools = Get-ChildItem -LiteralPath (Join-Path $env:ANDROID_HOME "build-tools") -Directory |

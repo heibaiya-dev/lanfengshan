@@ -14,7 +14,7 @@ import {
   Wind,
 } from "lucide-react";
 import { MaterialMenu } from "./MaterialMenu";
-import { AUDIO_OPTIONS, audioUrl, BLADE_OPTIONS } from "./mediaCatalog";
+import { AUDIO_OPTIONS, audioBrandLabel, audioUrl, BLADE_OPTIONS, type FanBrand } from "./mediaCatalog";
 import { useFanAudio } from "./useFanAudio";
 import { useFanMotor } from "./useFanMotor";
 import "./App.css";
@@ -33,14 +33,43 @@ type FanSettings = {
 };
 
 type Screen = "fan" | "settings" | "about";
+type WidgetKind = "lanfeng" | "xuelang" | "duet";
 
-const STORAGE_KEY = "dianfengshan-settings";
 const SPEEDS: { value: Speed; label: string; rpm: number }[] = [
   { value: 1, label: "柔和", rpm: 90 },
   { value: 2, label: "舒适", rpm: 210 },
   { value: 3, label: "强劲", rpm: 380 },
 ];
 const TIMER_OPTIONS = [0, 15, 30, 60, 120];
+const rawWidgetMode = new URLSearchParams(window.location.search).get("widget");
+const widgetKind: WidgetKind | null = rawWidgetMode === "1" || rawWidgetMode === "lanfeng"
+  ? "lanfeng"
+  : rawWidgetMode === "xuelang"
+    ? "xuelang"
+    : rawWidgetMode === "duet"
+      ? "duet"
+      : null;
+const isWidgetMode = widgetKind !== null;
+const STORAGE_KEY = `dianfengshan-settings${widgetKind ? `-${widgetKind}` : ""}`;
+const isMobilePlatform = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+const WIDGET_KINDS: WidgetKind[] = ["lanfeng", "xuelang", "duet"];
+const WIDGET_LABELS: Record<WidgetKind, string> = {
+  lanfeng: "岚峰牌电风扇",
+  xuelang: "雪狼牌电风扇",
+  duet: "岚峰牌 + 雪狼牌双风扇",
+};
+const WIDGET_WINDOW_LABELS: Record<WidgetKind, string> = {
+  lanfeng: "fan-widget-lanfeng",
+  xuelang: "fan-widget-xuelang",
+  duet: "fan-widget-duet",
+};
+
+function defaultAudioForWidget(): string {
+  if (widgetKind === "xuelang") return AUDIO_OPTIONS.find((option) => option.brand === "xuelang")?.id ?? "running";
+  if (widgetKind === "duet") return AUDIO_OPTIONS.find((option) => option.brand === "chorus")?.id ?? "running";
+  return AUDIO_OPTIONS.find((option) => option.brand === "lanfeng")?.id ?? "running";
+}
 
 function readSettings(): FanSettings {
   const defaults: FanSettings = {
@@ -49,7 +78,7 @@ function readSettings(): FanSettings {
     oscillating: false,
     muted: false,
     bladeId: "blade-1",
-    audioId: "running",
+    audioId: defaultAudioForWidget(),
     timerEnd: null,
     timerMinutes: 0,
   };
@@ -68,7 +97,9 @@ function readSettings(): FanSettings {
       oscillating: Boolean(saved.oscillating),
       muted: Boolean(saved.muted),
       bladeId: BLADE_OPTIONS.some((option) => option.id === saved.bladeId) ? saved.bladeId : defaults.bladeId,
-      audioId: AUDIO_OPTIONS.some((option) => option.id === saved.audioId) ? saved.audioId : defaults.audioId,
+      audioId: AUDIO_OPTIONS.some((option) => option.id === saved.audioId && (!widgetKind || option.brand === (widgetKind === "duet" ? "chorus" : widgetKind)))
+        ? saved.audioId
+        : defaults.audioId,
       timerEnd,
       timerMinutes: timerEnd && TIMER_OPTIONS.includes(saved.timerMinutes) ? saved.timerMinutes : 0,
     };
@@ -89,16 +120,117 @@ function formatRemaining(milliseconds: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+type FanDisplayProps = {
+  brand: Exclude<FanBrand, "chorus">;
+  isOn: boolean;
+  rpm: number;
+  oscillating: boolean;
+  bladeFile: string;
+  hubFile: string;
+};
+
+function FanDisplay({ brand, isOn, rpm, oscillating, bladeFile, hubFile }: FanDisplayProps) {
+  const rotorRef = useFanMotor(isOn, rpm);
+  const bladeClass = bladeFile.startsWith("blade-") ? `blade-image-${bladeFile.replace(".png", "")}` : "";
+  return (
+    <div className={`fan-assembly fan-assembly-${brand} ${isOn ? "is-on" : ""} ${isOn && oscillating ? "is-oscillating" : ""}`}>
+      <div className="fan-head">
+        <div className="guard-back" aria-hidden="true" />
+        <div className="fan-rotor" ref={rotorRef} aria-hidden="true">
+          {[0, 120, 240].map((angle) => (
+            <div className="fan-blade" style={{ "--blade-angle": `${angle}deg` } as CSSProperties} key={angle}>
+              <img className={`blade-image ${bladeClass}`} src={`/assets/${bladeFile}`} alt="" draggable={false} />
+            </div>
+          ))}
+        </div>
+        <div className="guard-front" aria-hidden="true" />
+        <img className="fan-hub" src={`/assets/${hubFile}`} alt="" draggable={false} />
+      </div>
+      <div className="fan-neck" aria-hidden="true" />
+      <div className="fan-stem" aria-hidden="true" />
+      <div className="fan-base" aria-hidden="true" />
+    </div>
+  );
+}
+
 function App() {
   const [settings, setSettings] = useState<FanSettings>(readSettings);
   const [screen, setScreen] = useState<Screen>("fan");
   const [now, setNow] = useState(Date.now());
-  const selectedSpeed = SPEEDS.find((option) => option.value === settings.speed)!;
+  const [widgetStates, setWidgetStates] = useState<Record<WidgetKind, boolean>>({ lanfeng: false, xuelang: false, duet: false });
+  const [widgetBusy, setWidgetBusy] = useState<WidgetKind | null>(null);
+  const selectedSpeed = SPEEDS.find((option) => option.value === settings.speed) ?? SPEEDS[1];
   const selectedBlade = BLADE_OPTIONS.find((option) => option.id === settings.bladeId) ?? BLADE_OPTIONS[0];
   const selectedAudio = AUDIO_OPTIONS.find((option) => option.id === settings.audioId) ?? AUDIO_OPTIONS[0];
+  const lanfengBladeFile = selectedBlade.id.startsWith("blade-") ? selectedBlade.file : "blade-1.png";
+  const xuelangBladeFile = selectedBlade.id.startsWith("xuelang-") ? selectedBlade.file : "xuelang-blade-1.png";
+  const displayMode: WidgetKind = isWidgetMode
+    ? widgetKind!
+    : selectedAudio.brand === "chorus"
+      ? "duet"
+      : selectedAudio.brand;
+  const widgetAudioBrand: FanBrand | null = widgetKind === "duet" ? "chorus" : widgetKind;
+  const widgetAudioOptions = widgetAudioBrand ? AUDIO_OPTIONS.filter((option) => option.brand === widgetAudioBrand) : [];
   const remaining = settings.timerEnd ? Math.max(0, settings.timerEnd - now) : 0;
-  const rotorRef = useFanMotor(settings.isOn, selectedSpeed.rpm);
   const audio = useFanAudio(settings.isOn, settings.muted, audioUrl(selectedAudio.file));
+
+  useEffect(() => {
+    if (!isWidgetMode) return;
+    document.documentElement.classList.add("widget-document");
+    document.body.classList.add("widget-body");
+    return () => {
+      document.documentElement.classList.remove("widget-document");
+      document.body.classList.remove("widget-body");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMobilePlatform || !("__TAURI_INTERNALS__" in window)) return;
+    let disposed = false;
+
+    void (async () => {
+      try {
+        const { check } = await import("@tauri-apps/plugin-updater");
+        const update = await check();
+        if (!update || disposed) return;
+        await update.downloadAndInstall();
+        if (disposed) return;
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        await relaunch();
+      } catch {
+        // Update checks stay silent when offline or when no release manifest exists.
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMobilePlatform || isWidgetMode || !("__TAURI_INTERNALS__" in window)) return;
+    let disposed = false;
+
+    void (async () => {
+      try {
+        const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+        const legacy = await WebviewWindow.getByLabel("fan-widget");
+        if (legacy) await legacy.close();
+        for (const kind of WIDGET_KINDS) {
+          const existing = await WebviewWindow.getByLabel(WIDGET_WINDOW_LABELS[kind]);
+          if (existing && !disposed && await existing.isVisible()) {
+            setWidgetStates((current) => ({ ...current, [kind]: true }));
+          }
+        }
+      } catch {
+        // The switch stays off when the app is running in a normal browser preview.
+      }
+    })();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -154,6 +286,60 @@ function App() {
     setSettings((current) => ({ ...current, [key]: value }));
   }
 
+  async function toggleDesktopWidget(kind: WidgetKind) {
+    if (isMobilePlatform || widgetBusy) return;
+    setWidgetBusy(kind);
+    try {
+      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+      const label = WIDGET_WINDOW_LABELS[kind];
+      const existing = await WebviewWindow.getByLabel(label);
+      if (widgetStates[kind]) {
+        if (existing) await existing.close();
+        setWidgetStates((current) => ({ ...current, [kind]: false }));
+        return;
+      }
+
+      if (existing) {
+        await existing.show();
+        await existing.setFocus();
+        setWidgetStates((current) => ({ ...current, [kind]: true }));
+        return;
+      }
+
+      const widget = new WebviewWindow(label, {
+        url: `index.html?widget=${kind}`,
+        title: WIDGET_LABELS[kind],
+        width: kind === "duet" ? 520 : 360,
+        height: kind === "duet" ? 760 : 620,
+        minWidth: kind === "duet" ? 460 : 320,
+        minHeight: kind === "duet" ? 680 : 500,
+        resizable: true,
+        alwaysOnTop: true,
+        decorations: false,
+        shadow: false,
+        transparent: true,
+        center: true,
+      });
+      void widget.once("tauri://error", () => setWidgetStates((current) => ({ ...current, [kind]: false })));
+      void widget.once("tauri://destroyed", () => setWidgetStates((current) => ({ ...current, [kind]: false })));
+      setWidgetStates((current) => ({ ...current, [kind]: true }));
+    } catch {
+      setWidgetStates((current) => ({ ...current, [kind]: false }));
+    } finally {
+      setWidgetBusy(null);
+    }
+  }
+
+  async function startWidgetDrag() {
+    if (!isWidgetMode) return;
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().startDragging();
+    } catch {
+      // Dragging is only available in a Tauri window.
+    }
+  }
+
   function renderUtilityBar() {
     return (
       <div className="utility-bar">
@@ -195,16 +381,21 @@ function App() {
             </div>
           </div>
           <div className="choice-list">
-            {AUDIO_OPTIONS.map((option) => (
-              <button
-                type="button"
-                className={`choice-row ${settings.audioId === option.id ? "is-selected" : ""}`}
-                aria-pressed={settings.audioId === option.id}
-                onClick={() => updatePreference("audioId", option.id)}
-                key={option.id}
-              >
-                <span className="choice-copy"><strong>{option.label}</strong><small>{option.note}</small></span>
-              </button>
+            {(["lanfeng", "xuelang", "chorus"] as FanBrand[]).map((brand) => (
+              <div className="audio-group" key={brand}>
+                <p className="audio-group-label">{audioBrandLabel[brand]}</p>
+                {AUDIO_OPTIONS.filter((option) => option.brand === brand).map((option) => (
+                  <button
+                    type="button"
+                    className={`choice-row ${settings.audioId === option.id ? "is-selected" : ""}`}
+                    aria-pressed={settings.audioId === option.id}
+                    onClick={() => updatePreference("audioId", option.id)}
+                    key={option.id}
+                  >
+                    <span className="choice-copy"><strong>{option.label}</strong><small>{option.note}</small></span>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </section>
@@ -233,6 +424,28 @@ function App() {
           </div>
         </section>
 
+        {!isMobilePlatform && <div className="widget-switch-list">
+          {WIDGET_KINDS.map((kind) => (
+            <div className="widget-switch-row" key={kind}>
+              <div>
+                <strong>{WIDGET_LABELS[kind]}</strong>
+                <p>{kind === "duet" ? "播放外部合唱歌曲" : "只播放对应的独占歌曲"}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={widgetStates[kind]}
+                aria-label={WIDGET_LABELS[kind]}
+                className={`widget-switch ${widgetStates[kind] ? "is-on" : ""}`}
+                onClick={() => void toggleDesktopWidget(kind)}
+                disabled={widgetBusy !== null}
+              >
+                <span aria-hidden="true" />
+              </button>
+            </div>
+          ))}
+        </div>}
+
         <button type="button" className="about-list-button" onClick={() => setScreen("about")}>
           <Info size={18} /><span>关于电峰扇</span><ChevronDown size={17} className="about-chevron" />
         </button>
@@ -247,7 +460,7 @@ function App() {
         <div className="about-hero">
           <div className="about-logo-wrap"><img src="/assets/hub-new.png" alt="电峰扇图标" /></div>
           <h2>电峰扇</h2>
-          <span className="version-badge">VERSION 1.0</span>
+          <span className="version-badge">VERSION 1.1</span>
         </div>
         <div className="credits-card">
           <p>由 <strong>Heibai</strong>（程序）</p>
@@ -264,36 +477,38 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
-      <main aria-label="电峰扇">
-        {screen === "fan" && renderUtilityBar()}
-        {screen === "settings" && renderSettings()}
-        {screen === "about" && renderAbout()}
-        {screen === "fan" && <section className="fan-stage" aria-label="电峰扇">
-          <div className={`fan-assembly ${settings.isOn ? "is-on" : ""} ${settings.isOn && settings.oscillating ? "is-oscillating" : ""}`}>
-            <div className="fan-head">
-              <div className="guard-back" aria-hidden="true" />
-              <div className="fan-rotor" ref={rotorRef} aria-hidden="true">
-                {[0, 120, 240].map((angle) => (
-                  <div
-                    className="fan-blade"
-                    style={{ "--blade-angle": `${angle}deg` } as CSSProperties}
-                    key={angle}
-                  >
-                    <img className={`blade-image blade-image-${selectedBlade.id}`} src={`/assets/${selectedBlade.file}`} alt="" draggable={false} />
-                  </div>
-                ))}
-              </div>
-              <div className="guard-front" aria-hidden="true" />
-              <img className="fan-hub" src="/assets/hub-new.png" alt="" draggable={false} />
-            </div>
-            <div className="fan-neck" aria-hidden="true" />
-            <div className="fan-stem" aria-hidden="true" />
-            <div className="fan-base" aria-hidden="true" />
-          </div>
-        </section>}
+      <div className={`app-shell ${isWidgetMode ? "widget-shell" : ""}`}>
+        <main aria-label="电峰扇">
+        {!isWidgetMode && screen === "fan" && renderUtilityBar()}
+        {!isWidgetMode && screen === "settings" && renderSettings()}
+        {!isWidgetMode && screen === "about" && renderAbout()}
+        {(isWidgetMode || screen === "fan") && <>
+          {isWidgetMode && <div
+            className="widget-drag-strip"
+            data-tauri-drag-region
+            role="presentation"
+            onPointerDown={() => void startWidgetDrag()}
+          />}
+          <section className={`fan-stage ${displayMode === "duet" ? "is-dual" : ""}`} aria-label={displayMode === "duet" ? "双风扇" : WIDGET_LABELS[displayMode]}>
+          {(displayMode === "lanfeng" || displayMode === "duet") && <FanDisplay
+            brand="lanfeng"
+            isOn={settings.isOn}
+            rpm={selectedSpeed.rpm}
+            oscillating={settings.oscillating}
+            bladeFile={lanfengBladeFile}
+            hubFile="hub-new.png"
+          />}
+          {(displayMode === "xuelang" || displayMode === "duet") && <FanDisplay
+            brand="xuelang"
+            isOn={settings.isOn}
+            rpm={selectedSpeed.rpm}
+            oscillating={settings.oscillating}
+            bladeFile={xuelangBladeFile}
+            hubFile="xuelang-hub.png"
+          />}
+          </section>
 
-        {screen === "fan" && <div className="controls">
+        <div className="controls">
           <div className="fan-toolbar" role="group" aria-label="风扇控制">
             <button
               type="button"
@@ -347,6 +562,21 @@ function App() {
             </button>
           </div>
 
+          {isWidgetMode && widgetAudioOptions.length > 0 && <div className="widget-audio-control">
+            <span>播放音频</span>
+            <MaterialMenu
+              label="选择播放音频"
+              value={selectedAudio.id}
+              options={widgetAudioOptions.map((option) => ({ value: option.id, label: option.label, detail: option.note }))}
+              onChange={(value) => setSettings((current) => ({ ...current, audioId: value }))}
+            >
+              <button type="button" className="widget-audio-trigger" aria-label="选择播放音频">
+                <span>{selectedAudio.label}</span>
+                <ChevronDown className="menu-chevron" size={14} aria-hidden="true" />
+              </button>
+            </MaterialMenu>
+          </div>}
+
           <div className="timer-control">
             <Timer size={17} strokeWidth={1.8} aria-hidden="true" />
             <span>{settings.timerEnd ? `剩余 ${formatRemaining(remaining)}` : "定时关闭"}</span>
@@ -369,7 +599,7 @@ function App() {
               </button>
             </MaterialMenu>
           </div>
-        </div>}
+        </div></>}
       </main>
     </div>
   );

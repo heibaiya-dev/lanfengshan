@@ -204,6 +204,23 @@ main {
   justify-content: center;
   animation: stage-enter 500ms var(--ease-out) both;
 }
+.fan-stage.is-dual {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  align-items: flex-start;
+  gap: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  overflow: visible;
+}
+.fan-stage.is-dual .fan-assembly {
+  /* Size each head from the viewport so two heads fit without clipping. */
+  --head-size: min(calc(50vw - 28px), 220px);
+  width: var(--head-size);
+  min-width: var(--head-size);
+  flex: 0 1 var(--head-size);
+}
 
 .fan-assembly {
   --head-size: min(calc(100vw - 48px), 370px);
@@ -267,12 +284,141 @@ main {
   user-select: none;
   -webkit-user-drag: none;
 }
+
+.widget-shell {
+  position: relative;
+  /* Widget windows use their native width so the duet can show two complete
+     fan heads side by side. */
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+.widget-drag-strip {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 10;
+  height: 36px;
+  cursor: move;
+  background: transparent;
+  touch-action: none;
+}
+.widget-document,
+.widget-body,
+.widget-body #root,
+.widget-shell main { background: transparent; }
+.widget-shell main { padding-top: 14px; padding-bottom: 14px; }
+.widget-shell .fan-stage { padding-top: 0; }
+.widget-shell .fan-assembly { --head-size: min(calc(100vw - 34px), 340px); }
+.widget-shell .fan-stage.is-dual {
+  justify-content: center;
+  gap: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.widget-shell .fan-stage.is-dual .fan-assembly {
+  --head-size: min(calc(50vw - 28px), 220px);
+  width: var(--head-size);
+  min-width: var(--head-size);
+  flex: 0 1 var(--head-size);
+}
+.widget-shell .controls { margin-top: 16px; padding-left: 14px; padding-right: 14px; }
+
+.widget-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 62px;
+  margin-top: 14px;
+  padding: 12px 14px 12px 16px;
+  border: 1px solid #efd9a6;
+  border-radius: 14px;
+  background: #fffdf6;
+}
+.widget-switch-row strong { display: block; color: #735021; font-size: 13px; font-weight: 700; }
+.widget-switch-row p { margin: 4px 0 0; color: #a38454; font-size: 11px; }
+.widget-switch {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #e3d1ad;
+  cursor: pointer;
+  transition: background .2s ease, opacity .2s ease;
+}
+.widget-switch span {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fffdf6;
+  box-shadow: 0 2px 5px rgba(99, 66, 23, .22);
+  transition: transform .2s var(--ease-out);
+}
+.widget-switch.is-on { background: #c88922; }
+.widget-switch.is-on span { transform: translateX(20px); }
+.widget-switch:disabled { cursor: wait; opacity: .65; }
 .fan-blade img.blade-image-blade-3 {
   width: calc(var(--head-size) * .48);
   bottom: calc(var(--head-size) * -.10);
 }
 .blade-choice-blade-3 .blade-thumb { height: 78px; }
 .blade-choice-blade-3 .blade-thumb img { width: 76px; max-height: 76px; }
+.fan-blade img.blade-image-blade-4 {
+  width: calc(var(--head-size) * .48);
+  bottom: calc(var(--head-size) * -.10);
+}
+.blade-choice-blade-4 .blade-thumb { height: 78px; }
+.blade-choice-blade-4 .blade-thumb img { width: 76px; max-height: 78px; }
+.fan-assembly-xuelang .fan-blade img {
+  width: calc(var(--head-size) * .34);
+  bottom: calc(var(--head-size) * -.09);
+}
+.fan-assembly-xuelang .fan-hub {
+  width: calc(var(--head-size) * .22);
+}
+
+.audio-group + .audio-group { margin-top: 12px; padding-top: 11px; border-top: 1px solid #f1dfba; }
+.audio-group-label { margin: 0 10px 4px; color: #a06c1b; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.widget-audio-control {
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 9px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  border: 1px solid #efd9a6;
+  border-radius: 13px;
+  color: #89632b;
+  background: rgba(255, 253, 246, .72);
+  font-size: 12px;
+}
+.widget-audio-trigger {
+  min-width: 0;
+  max-width: 78%;
+  min-height: 34px;
+  padding: 0 5px 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 8px;
+  color: #735021;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+}
+.widget-audio-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .guard-front {
   position: absolute;
