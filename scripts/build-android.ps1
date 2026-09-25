@@ -98,6 +98,18 @@ try {
     if ($badging -match "application-debuggable") {
         throw "The release APK is marked debuggable."
     }
+    $manifestTree = (& $aapt dump xmltree $deliverable AndroidManifest.xml) -join [Environment]::NewLine
+    foreach ($component in @("LanfengWidgetProvider", "XuelangWidgetProvider", "DuetWidgetProvider", "FanWidgetAudioService", "FanWidgetAudioActivity")) {
+        if ($manifestTree -notmatch [regex]::Escape($component)) {
+            throw "The release APK is missing the Android widget component $component."
+        }
+    }
+    $entries = & $aapt list $deliverable
+    foreach ($asset in @("assets/widget/catalog.json", "assets/widget/audio/xuelang-start.mp3", "assets/widget/audio/xuelang-stop.mp3")) {
+        if ($entries -notcontains $asset) {
+            throw "The release APK is missing the Android widget asset $asset."
+        }
+    }
     Write-Output "Release APK: $deliverable"
 } finally {
     Pop-Location
