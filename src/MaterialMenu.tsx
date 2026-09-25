@@ -1,4 +1,5 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Check } from "lucide-react";
 import type { ReactElement } from "react";
 
 type MenuOption = {
@@ -41,6 +42,9 @@ export function MaterialMenu({ label, value, options, onChange, children }: Mate
                   <span>{option.label}</span>
                   {option.detail && <span className="menu-option-detail">{option.detail}</span>}
                 </span>
+                <DropdownMenu.ItemIndicator className="menu-check">
+                  <Check size={19} strokeWidth={2.3} />
+                </DropdownMenu.ItemIndicator>
               </DropdownMenu.RadioItem>
             ))}
           </DropdownMenu.RadioGroup>

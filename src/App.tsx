@@ -1,4 +1,18 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ExternalLink,
+  GitBranch,
+  Info,
+  MoveHorizontal,
+  Power,
+  Settings,
+  Timer,
+  Volume2,
+  VolumeX,
+  Wind,
+} from "lucide-react";
 import { MaterialMenu } from "./MaterialMenu";
 import { AUDIO_OPTIONS, audioUrl, BLADE_OPTIONS } from "./mediaCatalog";
 import { useFanAudio } from "./useFanAudio";
@@ -145,8 +159,12 @@ function App() {
       <div className="utility-bar">
         <span className="utility-spacer" />
         <div className="utility-actions">
-          <button type="button" className="utility-button" onClick={() => setScreen("settings")}>设置</button>
-          <button type="button" className="utility-button" onClick={() => setScreen("about")}>关于</button>
+          <button type="button" className="utility-button" aria-label="设置" onClick={() => setScreen("settings")}>
+            <Settings size={19} strokeWidth={2} />
+          </button>
+          <button type="button" className="utility-button" aria-label="关于" onClick={() => setScreen("about")}>
+            <Info size={19} strokeWidth={2} />
+          </button>
         </div>
       </div>
     );
@@ -155,7 +173,10 @@ function App() {
   function renderPageHeader(title: string) {
     return (
       <div className="subpage-header">
-        <button type="button" className="back-button" onClick={() => setScreen("fan")} aria-label="返回风扇">返回</button>
+        <button type="button" className="back-button" onClick={() => setScreen("fan")} aria-label="返回风扇">
+          <ArrowLeft size={21} />
+          <span>返回</span>
+        </button>
         <h1>{title}</h1>
         <span className="header-spacer" />
       </div>
@@ -183,7 +204,6 @@ function App() {
                 key={option.id}
               >
                 <span className="choice-copy"><strong>{option.label}</strong><small>{option.note}</small></span>
-                {settings.audioId === option.id && <span className="choice-selected">已选</span>}
               </button>
             ))}
           </div>
@@ -214,7 +234,7 @@ function App() {
         </section>
 
         <button type="button" className="about-list-button" onClick={() => setScreen("about")}>
-          <span>关于电峰扇</span>
+          <Info size={18} /><span>关于电峰扇</span><ChevronDown size={17} className="about-chevron" />
         </button>
       </div>
     );
@@ -235,7 +255,9 @@ function App() {
           <p>各位群友（测试和音乐）</p>
         </div>
         <a className="github-card" href="https://github.com/heibaiya-dev/lanfengshan.git" target="_blank" rel="noreferrer">
+          <GitBranch size={20} />
           <span><strong>GitHub 仓库</strong><small>heibaiya-dev/lanfengshan</small></span>
+          <ExternalLink size={17} />
         </a>
       </div>
     );
@@ -281,6 +303,7 @@ function App() {
               aria-pressed={settings.isOn}
               title={settings.isOn ? "关闭电峰扇" : "开启电峰扇"}
             >
+              <Power size={24} strokeWidth={2.1} aria-hidden="true" />
               <span>{settings.isOn ? "关闭" : "开启"}</span>
             </button>
             <MaterialMenu
@@ -294,7 +317,11 @@ function App() {
                 className="toolbar-button toolbar-speed"
                 aria-label={`风速，当前 ${settings.speed} 档`}
               >
-                <span className="speed-label">风速 · {settings.speed} 档</span>
+                <Wind size={24} strokeWidth={2.1} aria-hidden="true" />
+                <span className="speed-label">
+                  风速 · {settings.speed} 档
+                  <ChevronDown className="menu-chevron" size={13} aria-hidden="true" />
+                </span>
               </button>
             </MaterialMenu>
             <button
@@ -305,6 +332,7 @@ function App() {
               aria-checked={settings.oscillating}
               onClick={() => setSettings((current) => ({ ...current, oscillating: !current.oscillating }))}
             >
+              <MoveHorizontal size={24} strokeWidth={2.1} aria-hidden="true" />
               <span>摇头{settings.oscillating ? "开" : "关"}</span>
             </button>
             <button
@@ -314,11 +342,13 @@ function App() {
               aria-label={settings.muted ? "取消静音" : "静音"}
               aria-pressed={settings.muted}
             >
+              {settings.muted ? <VolumeX size={24} strokeWidth={2.1} aria-hidden="true" /> : <Volume2 size={24} strokeWidth={2.1} aria-hidden="true" />}
               <span>{settings.muted ? "静音" : "声音"}</span>
             </button>
           </div>
 
           <div className="timer-control">
+            <Timer size={17} strokeWidth={1.8} aria-hidden="true" />
             <span>{settings.timerEnd ? `剩余 ${formatRemaining(remaining)}` : "定时关闭"}</span>
             <MaterialMenu
               label="定时关闭"
@@ -335,6 +365,7 @@ function App() {
                 aria-label="定时关闭时间"
               >
                 {settings.timerMinutes === 0 ? "未设置" : settings.timerMinutes < 60 ? `${settings.timerMinutes} 分钟` : `${settings.timerMinutes / 60} 小时`}
+                <ChevronDown className="menu-chevron" size={14} aria-hidden="true" />
               </button>
             </MaterialMenu>
           </div>
