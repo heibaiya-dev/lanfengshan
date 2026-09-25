@@ -295,8 +295,11 @@ function App() {
       const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
       const label = WIDGET_WINDOW_LABELS[kind];
       const existing = await WebviewWindow.getByLabel(label);
-      if (widgetStates[kind]) {
-        if (existing) await existing.close();
+      const isOpen = existing ? await existing.isVisible() : widgetStates[kind];
+      if (isOpen) {
+        if (existing) {
+          await existing.close();
+        }
         setWidgetStates((current) => ({ ...current, [kind]: false }));
         return;
       }
@@ -562,7 +565,11 @@ function App() {
             role="presentation"
             onPointerDown={() => void startWidgetDrag()}
           />}
-          <section className={`fan-stage ${displayMode === "duet" ? "is-dual" : ""}`} aria-label={displayMode === "duet" ? "双风扇" : WIDGET_LABELS[displayMode]}>
+          <section
+            className={`fan-stage ${displayMode === "duet" ? "is-dual" : ""}`}
+            aria-label={displayMode === "duet" ? "双风扇" : WIDGET_LABELS[displayMode]}
+            onPointerDown={isWidgetMode ? () => void startWidgetDrag() : undefined}
+          >
           {(displayMode === "lanfeng" || displayMode === "duet") && <FanDisplay
             brand="lanfeng"
             isOn={settings.isOn}

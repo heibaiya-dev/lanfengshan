@@ -6,14 +6,19 @@
     "linux"
   ],
   "windows": [
-    "main"
+    "main",
+    "fan-widget-lanfeng",
+    "fan-widget-xuelang",
+    "fan-widget-duet"
   ],
   "permissions": [
     "core:webview:allow-create-webview-window",
     "core:window:allow-hide",
+    "core:window:allow-close",
     "core:window:allow-is-visible",
     "core:window:allow-set-focus",
     "core:window:allow-show",
+    "core:window:allow-start-dragging",
     "updater:default",
     "process:default"
   ]
