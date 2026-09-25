@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "电峰扇",
-  "version": "1.1.0",
-  "identifier": "com.heibai.hyw.lanfengshan",
+  "productName": "造雪机",
+  "version": "1.0.0",
+  "identifier": "com.heibai.hyw.zaoxueji",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,12 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "电峰扇",
+        "title": "造雪机",
         "width": 420,
         "height": 820,
         "minWidth": 360,
         "minHeight": 640,
-        "backgroundColor": "#FFF9EA"
+        "backgroundColor": "#FFFFFF"
       }
     ],
     "security": {
@@ -42,7 +42,7 @@
       "requireSignedVersion": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM1Njk3NTZCQkVCMTc3RkQKUldUOWQ3RythM1ZwTlRtaTZDQjMyKzV3STEreWJtUDJLSUdrUDZhamhROU1xdTBheG9UWVhZa2gK",
       "endpoints": [
-        "https://github.com/heibaiya-dev/lanfengshan/releases/latest/download/latest.json"
+        "https://github.com/heibaiya-dev/lanfengshan/releases/latest/download/zaoxueji-latest.json"
       ]
     }
   }

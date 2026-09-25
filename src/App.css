@@ -645,3 +645,76 @@ main {
   .toolbar-button, .toolbar-button::after, .menu-chevron,
   .timer-menu-trigger, .material-menu-item { transition: none; }
 }
+
+/* 造雪机 branch palette: white snow and cool blue controls. */
+.snow-app {
+  --background: #fbfdff;
+  --primary: #4d78c8;
+  --muted: #6f7f98;
+  --focus: #315da8;
+  color: #283b5b;
+  background: var(--background);
+}
+.snow-document,
+.snow-body,
+.snow-body #root { background: #fff; }
+.snow-app .utility-button {
+  border-color: #d8e6fa;
+  color: #5279b6;
+  background: #f2f8ff;
+}
+.snow-app .utility-button:hover { color: #315d9f; background: #e7f1ff; }
+.snow-app .settings-card,
+.snow-app .github-card,
+.snow-app .widget-switch-row { border-color: #dbe7f8; background: #fff; }
+.snow-app .settings-icon { color: #5078bd; background: #eaf3ff; }
+.snow-app .blade-settings-icon { color: #5078bd; background: #eaf3ff; }
+.snow-app .choice-row { color: #3d5579; }
+.snow-app .choice-row:hover { background: #f0f6ff; }
+.snow-app .choice-row.is-selected { color: #2f5ca4; background: #e0edff; }
+.snow-app .choice-check { color: #4d78c8; }
+.snow-app .blade-choice { border-color: #dbe7f8; color: #3c557a; background: #f8fbff; }
+.snow-app .blade-choice:hover { background: #eef6ff; }
+.snow-app .blade-choice.is-selected { border-color: #84a9e5; background: #e3efff; }
+.snow-app .blade-check { color: #fff; background: #4d78c8; }
+.snow-app .audio-group + .audio-group { border-color: #e2ecfa; }
+.snow-app .audio-group-label { color: #557ebd; }
+.snow-app .about-logo-wrap { border-color: #d5e5fa; background: #edf6ff; box-shadow: 0 8px 20px rgba(83, 128, 196, .12); }
+.snow-app .about-hero h2 { color: #273b5b; }
+.snow-app .version-badge { color: #5376aa; background: #edf4ff; }
+.snow-app .credits-card { color: #536b8c; background: #eef6ff; }
+.snow-app .credits-card strong { color: #315d9f; }
+.snow-app .github-card { color: #46658f; }
+.snow-app .about-list-button { border-color: #dbe7f8; color: #46658f; background: #fff; }
+.snow-app .fan-head { background: #fff; box-shadow: 0 12px 28px rgba(73, 115, 171, .13); }
+.snow-app .guard-back {
+  border-color: #b9d4f2;
+  background:
+    radial-gradient(circle, transparent 0 40%, rgba(90, 139, 202, .13) 40.2% 40.6%, transparent 40.8% 69%, rgba(90, 139, 202, .15) 69.2% 69.7%, transparent 70%),
+    repeating-conic-gradient(from 1deg, rgba(90, 139, 202, .12) 0deg .6deg, transparent .6deg 15deg),
+    #fff;
+}
+.snow-app .guard-front { border-color: rgba(90, 139, 202, .35); }
+.snow-app .fan-neck,
+.snow-app .fan-stem { background: #9dbde7; }
+.snow-app .fan-base { background: #7fa6dc; }
+.snow-app .fan-toolbar { border-color: #cddff5; background: #e5f1ff; box-shadow: 0 6px 18px rgba(83, 128, 196, .10); }
+.snow-app .toolbar-button,
+.snow-app .toolbar-speed { color: #486890; }
+.snow-app .power-button { background: #fff; }
+.snow-app .power-button.is-active { color: #fff; background: #4d78c8; }
+.snow-app .oscillation-button.is-active,
+.snow-app .mute-button.is-active { color: #274f8e; background: #bed8fb; }
+.snow-app .toolbar-button:hover,
+.snow-app .toolbar-speed:hover { background: #cfe2fc; }
+.snow-app .timer-menu-trigger { color: #52709b; }
+.snow-app .timer-menu-trigger[data-state="open"] { background: #e5f1ff; }
+.snow-app .widget-audio-control { border-color: #dbe7f8; background: rgba(255, 255, 255, .82); color: #55749e; }
+.snow-app .widget-audio-trigger { color: #426493; }
+.snow-app .widget-switch { background: #dbe7f8; }
+.snow-app .widget-switch.is-on { background: #4d78c8; }
+.snow-app .widget-switch span { background: #fff; box-shadow: 0 2px 5px rgba(64, 98, 145, .22); }
+.snow-app .material-menu { border-color: #d7e5f8; color: #2d4263; background: #f2f8ff; box-shadow: 0 10px 30px rgba(56, 91, 139, .13), 0 2px 6px rgba(56, 91, 139, .06); }
+.snow-app .material-menu-item[data-state="checked"] { color: #2f5ca4; background: #dcecff; }
+.snow-app .material-menu-item[data-highlighted] { background: #d9e9ff; }
+.snow-app .menu-check { color: #4d78c8; }

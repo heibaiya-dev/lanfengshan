@@ -1,13 +1,13 @@
 <resources>
-    <style name="Theme.dianfengshan" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/fan_primary</item>
-        <item name="colorPrimaryVariant">@color/fan_primary</item>
-        <item name="colorOnPrimary">@color/fan_on_primary</item>
-        <item name="colorSecondary">@color/fan_primary</item>
-        <item name="android:colorAccent">@color/fan_primary</item>
-        <item name="android:windowBackground">@color/fan_background</item>
-        <item name="android:statusBarColor">@color/fan_background</item>
-        <item name="android:navigationBarColor">@color/fan_background</item>
+    <style name="Theme.zaoxueji" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/snow_primary</item>
+        <item name="colorPrimaryVariant">@color/snow_primary</item>
+        <item name="colorOnPrimary">@color/snow_on_primary</item>
+        <item name="colorSecondary">@color/snow_primary</item>
+        <item name="android:colorAccent">@color/snow_primary</item>
+        <item name="android:windowBackground">@color/snow_background</item>
+        <item name="android:statusBarColor">@color/snow_background</item>
+        <item name="android:navigationBarColor">@color/snow_background</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>

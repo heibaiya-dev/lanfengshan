@@ -6,7 +6,8 @@
     "linux"
   ],
   "windows": [
-    "main"
+    "main",
+    "snow-widget-duet"
   ],
   "permissions": [
     "core:webview:allow-create-webview-window",

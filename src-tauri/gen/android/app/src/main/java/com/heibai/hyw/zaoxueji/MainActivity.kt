@@ -1,4 +1,4 @@
-package com.heibai.hyw.lanfengshan
+package com.heibai.hyw.zaoxueji
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

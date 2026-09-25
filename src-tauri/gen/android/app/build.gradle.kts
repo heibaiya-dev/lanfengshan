@@ -22,10 +22,10 @@ val releaseSigningProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "com.heibai.hyw.lanfengshan"
+    namespace = "com.heibai.hyw.zaoxueji"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.heibai.hyw.lanfengshan"
+        applicationId = "com.heibai.hyw.zaoxueji"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

@@ -77,7 +77,7 @@ try {
 
     $releaseDir = Join-Path $projectRoot "releases"
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-    $deliverable = Join-Path $releaseDir "lanfengshan-$appVersion-$($architectureConfig.abi)-release.apk"
+    $deliverable = Join-Path $releaseDir "zaoxueji-$appVersion-$($architectureConfig.abi)-release.apk"
     Copy-Item -LiteralPath $releaseApk.FullName -Destination $deliverable -Force
 
     $buildTools = Get-ChildItem -LiteralPath (Join-Path $env:ANDROID_HOME "build-tools") -Directory |
@@ -89,8 +89,8 @@ try {
         throw "apksigner rejected the release APK."
     }
     $badging = (& $aapt dump badging $deliverable) -join [Environment]::NewLine
-    if ($badging -notmatch "package: name='com\.heibai\.hyw\.lanfengshan'") {
-        throw "The release APK package identifier is not com.heibai.hyw.lanfengshan."
+    if ($badging -notmatch "package: name='com\.heibai\.hyw\.zaoxueji'") {
+        throw "The release APK package identifier is not com.heibai.hyw.zaoxueji."
     }
     if ($badging -notmatch "native-code:.*$($architectureConfig.abi)") {
         throw "The release APK does not contain the $($architectureConfig.abi) native library."

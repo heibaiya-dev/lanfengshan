@@ -26,8 +26,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: app-v__VERSION__
-          releaseName: 电峰扇 v__VERSION__
+          tagName: snow-v__VERSION__
+          releaseName: 造雪机 v__VERSION__
           releaseBody: 自动发布桌面安装包和更新清单。
           releaseDraft: false
           prerelease: false
