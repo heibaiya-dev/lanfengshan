@@ -17,6 +17,7 @@ import { MaterialMenu } from "./MaterialMenu";
 import { AUDIO_OPTIONS, audioBrandLabel, audioUrl, BLADE_OPTIONS, type FanBrand } from "./mediaCatalog";
 import { useFanAudio } from "./useFanAudio";
 import { useFanMotor } from "./useFanMotor";
+import { requestPinWidget, type WidgetKind } from "./androidWidgets";
 import "./App.css";
 
 type Speed = 1 | 2 | 3;
@@ -32,8 +33,7 @@ type FanSettings = {
   timerMinutes: number;
 };
 
-type Screen = "fan" | "settings" | "about";
-type WidgetKind = "lanfeng" | "xuelang" | "duet";
+type Screen = "fan" | "settings" | "about" | "widgets";
 
 const SPEEDS: { value: Speed; label: string; rpm: number }[] = [
   { value: 1, label: "柔和", rpm: 90 },
@@ -159,6 +159,8 @@ function App() {
   const [now, setNow] = useState(Date.now());
   const [widgetStates, setWidgetStates] = useState<Record<WidgetKind, boolean>>({ lanfeng: false, xuelang: false, duet: false });
   const [widgetBusy, setWidgetBusy] = useState<WidgetKind | null>(null);
+  const [widgetMessage, setWidgetMessage] = useState("");
+  const [widgetMessageKind, setWidgetMessageKind] = useState<WidgetKind | null>(null);
   const selectedSpeed = SPEEDS.find((option) => option.value === settings.speed) ?? SPEEDS[1];
   const selectedBlade = BLADE_OPTIONS.find((option) => option.id === settings.bladeId) ?? BLADE_OPTIONS[0];
   const selectedAudio = AUDIO_OPTIONS.find((option) => option.id === settings.audioId) ?? AUDIO_OPTIONS[0];
@@ -172,7 +174,7 @@ function App() {
   const widgetAudioBrand: FanBrand | null = widgetKind === "duet" ? "chorus" : widgetKind;
   const widgetAudioOptions = widgetAudioBrand ? AUDIO_OPTIONS.filter((option) => option.brand === widgetAudioBrand) : [];
   const remaining = settings.timerEnd ? Math.max(0, settings.timerEnd - now) : 0;
-  const audio = useFanAudio(settings.isOn, settings.muted, audioUrl(selectedAudio.file));
+  const audio = useFanAudio(settings.isOn, settings.muted, audioUrl(selectedAudio.file), selectedAudio.brand);
 
   useEffect(() => {
     if (!isWidgetMode) return;
@@ -340,6 +342,36 @@ function App() {
     }
   }
 
+  async function addWidget(kind: WidgetKind) {
+    if (widgetBusy) return;
+    setWidgetMessageKind(kind);
+    setWidgetMessage("");
+    if (!isMobilePlatform) {
+      if (!("__TAURI_INTERNALS__" in window)) {
+        setWidgetMessage("请在电峰扇软件内添加桌面小组件。");
+        return;
+      }
+      await toggleDesktopWidget(kind);
+      return;
+    }
+
+    setWidgetBusy(kind);
+    try {
+      const result = await requestPinWidget(kind);
+      if (!result.supported) {
+        setWidgetMessage("当前桌面不支持直接添加。请长按桌面空白处，打开“小组件”，找到“电峰扇”后拖动添加。");
+      } else if (result.ok) {
+        setWidgetMessage("请在系统弹窗中确认添加。若未显示弹窗，可长按桌面空白处，从“小组件”中添加电峰扇。");
+      } else {
+        setWidgetMessage(result.error || "系统未能打开添加界面，请从桌面的小组件列表添加。");
+      }
+    } catch (error) {
+      setWidgetMessage(error instanceof Error ? error.message : "添加失败，请重试。");
+    } finally {
+      setWidgetBusy(null);
+    }
+  }
+
   function renderUtilityBar() {
     return (
       <div className="utility-bar">
@@ -356,10 +388,10 @@ function App() {
     );
   }
 
-  function renderPageHeader(title: string, showBackIcon = true) {
+  function renderPageHeader(title: string, showBackIcon = true, backTo: Screen = "fan") {
     return (
       <div className="subpage-header">
-        <button type="button" className="back-button" onClick={() => setScreen("fan")} aria-label="返回风扇">
+        <button type="button" className="back-button" onClick={() => setScreen(backTo)} aria-label={backTo === "settings" ? "返回设置" : "返回风扇"}>
           {showBackIcon && <ArrowLeft size={21} />}
           <span>返回</span>
         </button>
@@ -373,6 +405,10 @@ function App() {
     return (
       <div className="subpage settings-page">
         {renderPageHeader("设置", false)}
+        <button type="button" className="widget-library-entry" onClick={() => setScreen("widgets")}>
+          <span><strong>小组件库</strong><small>岚峰、雪狼与双风扇，添加到桌面独立控制</small></span>
+          <span className="widget-library-link">打开</span>
+        </button>
         <section className="settings-card" aria-labelledby="audio-setting-title">
           <div className="settings-heading">
             <div>
@@ -476,12 +512,49 @@ function App() {
     );
   }
 
+  function renderWidgetLibrary() {
+    return (
+      <div className="subpage widget-library-page">
+        {renderPageHeader("小组件库", false, "settings")}
+        <p className="widget-library-description">
+          {isMobilePlatform ? "选择一种风扇，添加到手机桌面。每个小组件的开关和音频独立设置。" : "选择一种风扇，在桌面独立控制开关和音频。"}
+        </p>
+        <div className="widget-library-list">
+          {WIDGET_KINDS.map((kind) => (
+            <section className="widget-library-item" aria-labelledby={`widget-title-${kind}`} key={kind}>
+              <div className="widget-preview" aria-hidden="true">
+                <div className="widget-preview-fans">
+                  {kind !== "xuelang" && <FanDisplay brand="lanfeng" isOn={false} rpm={0} oscillating={false} bladeFile="blade-1.png" hubFile="hub-new.png" />}
+                  {kind !== "lanfeng" && <FanDisplay brand="xuelang" isOn={false} rpm={0} oscillating={false} bladeFile="xuelang-blade-1.png" hubFile="xuelang-hub.png" />}
+                </div>
+                <div className="widget-preview-controls">开关 · 风速 · 摇头 · 静音</div>
+              </div>
+              <h2 id={`widget-title-${kind}`}>{WIDGET_LABELS[kind]}</h2>
+              <p>{kind === "duet" ? "两个小风扇，共同播放合唱歌曲" : kind === "lanfeng" ? "播放岚峰独占音频" : "播放雪狼独占音频"}</p>
+              <button
+                type="button"
+                className="widget-add-button"
+                aria-label={`${!isMobilePlatform && widgetStates[kind] ? "关闭" : "添加"}${WIDGET_LABELS[kind]}小组件`}
+                disabled={widgetBusy !== null}
+                onClick={() => void addWidget(kind)}
+              >
+                {widgetBusy === kind ? "正在打开…" : !isMobilePlatform && widgetStates[kind] ? "关闭小组件" : "添加到桌面"}
+              </button>
+              <p className="widget-library-message" role="status">{widgetMessageKind === kind ? widgetMessage : ""}</p>
+            </section>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
       <div className={`app-shell ${isWidgetMode ? "widget-shell" : ""}`}>
         <main aria-label="电峰扇">
         {!isWidgetMode && screen === "fan" && renderUtilityBar()}
         {!isWidgetMode && screen === "settings" && renderSettings()}
         {!isWidgetMode && screen === "about" && renderAbout()}
+        {!isWidgetMode && screen === "widgets" && renderWidgetLibrary()}
         {(isWidgetMode || screen === "fan") && <>
           {isWidgetMode && <div
             className="widget-drag-strip"
