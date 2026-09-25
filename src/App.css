@@ -323,7 +323,7 @@ main {
 .widget-body #root,
 .widget-shell main { background: transparent; }
 .widget-shell main { min-height: 0; padding-top: 14px; padding-bottom: 14px; }
-.widget-shell .fan-stage { flex: none; padding-top: 0; }
+.widget-shell .fan-stage { flex: none; padding-top: 0; cursor: move; }
 .widget-shell .fan-assembly {
   /* Reserve room for the stand (50px), controls (204px), gap (16px),
      and window padding (28px), plus 2px for rounding. */
