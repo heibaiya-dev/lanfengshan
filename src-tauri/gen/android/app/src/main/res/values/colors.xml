@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fan_background">#FFF9EA</color>
+    <color name="fan_primary">#A76612</color>
+    <color name="fan_on_primary">#FFFFFF</color>
+</resources>

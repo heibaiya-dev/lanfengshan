@@ -1,0 +1,14 @@
+<resources>
+    <style name="Theme.dianfengshan" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/fan_primary</item>
+        <item name="colorPrimaryVariant">@color/fan_primary</item>
+        <item name="colorOnPrimary">@color/fan_on_primary</item>
+        <item name="colorSecondary">@color/fan_primary</item>
+        <item name="android:colorAccent">@color/fan_primary</item>
+        <item name="android:windowBackground">@color/fan_background</item>
+        <item name="android:statusBarColor">@color/fan_background</item>
+        <item name="android:navigationBarColor">@color/fan_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
