@@ -7,6 +7,8 @@
   ],
   "windows": [
     "main",
+    "snow-widget-lanfeng",
+    "snow-widget-xuelang",
     "snow-widget-duet"
   ],
   "permissions": [

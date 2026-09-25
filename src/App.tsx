@@ -17,6 +17,7 @@ import { MaterialMenu } from "./MaterialMenu";
 import { AUDIO_OPTIONS, audioBrandLabel, audioUrl, BLADE_OPTIONS, type FanBrand } from "./mediaCatalog";
 import { useFanAudio } from "./useFanAudio";
 import { useFanMotor } from "./useFanMotor";
+import { requestPinWidget, type WidgetKind } from "./androidWidgets";
 import "./App.css";
 
 type Speed = 1 | 2 | 3;
@@ -32,8 +33,7 @@ type FanSettings = {
   timerMinutes: number;
 };
 
-type Screen = "fan" | "settings" | "about";
-type WidgetKind = "duet";
+type Screen = "fan" | "settings" | "about" | "widgets";
 
 const APP_NAME = "造雪机";
 const SNOW_BLADE_OPTIONS = BLADE_OPTIONS.filter((option) => option.id.startsWith("xuelang-"));
@@ -46,21 +46,31 @@ const SPEEDS: { value: Speed; label: string; rpm: number }[] = [
 ];
 const TIMER_OPTIONS = [0, 15, 30, 60, 120];
 const rawWidgetMode = new URLSearchParams(window.location.search).get("widget");
-const widgetKind: WidgetKind | null = rawWidgetMode === "1" || rawWidgetMode === "duet" ? "duet" : null;
+const widgetKind: WidgetKind | null = rawWidgetMode === "1" || rawWidgetMode === "duet"
+  ? "duet"
+  : rawWidgetMode === "lanfeng" || rawWidgetMode === "xuelang" ? rawWidgetMode : null;
 const isWidgetMode = widgetKind !== null;
 const STORAGE_KEY = `zaoxueji-settings${widgetKind ? `-${widgetKind}` : ""}`;
 const isMobilePlatform = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-const WIDGET_KINDS: WidgetKind[] = ["duet"];
+const WIDGET_KINDS: WidgetKind[] = ["lanfeng", "xuelang", "duet"];
 const WIDGET_LABELS: Record<WidgetKind, string> = {
-  duet: "造雪机双歌姬",
+  lanfeng: "岚峰牌电风扇",
+  xuelang: "雪狼牌电风扇",
+  duet: "岚峰牌 + 雪狼牌双风扇",
 };
 const WIDGET_WINDOW_LABELS: Record<WidgetKind, string> = {
+  lanfeng: "snow-widget-lanfeng",
+  xuelang: "snow-widget-xuelang",
   duet: "snow-widget-duet",
 };
+const availableAudioOptions = widgetKind
+  ? AUDIO_OPTIONS.filter((option) => option.brand === (widgetKind === "duet" ? "chorus" : widgetKind))
+  : SNOW_AUDIO_OPTIONS;
+const availableBladeOptions = isWidgetMode ? BLADE_OPTIONS : SNOW_BLADE_OPTIONS;
 
 function defaultAudioForWidget(): string {
-  return SNOW_AUDIO_OPTIONS[0]?.id ?? "xuelang-01";
+  return availableAudioOptions[0]?.id ?? "xuelang-01";
 }
 
 function readSettings(): FanSettings {
@@ -69,7 +79,7 @@ function readSettings(): FanSettings {
     speed: 2,
     oscillating: false,
     muted: false,
-    bladeId: "xuelang-1",
+    bladeId: widgetKind === "lanfeng" ? "blade-1" : "xuelang-1",
     audioId: defaultAudioForWidget(),
     timerEnd: null,
     timerMinutes: 0,
@@ -88,8 +98,8 @@ function readSettings(): FanSettings {
       speed: [1, 2, 3].includes(saved.speed) ? saved.speed : 2,
       oscillating: Boolean(saved.oscillating),
       muted: Boolean(saved.muted),
-      bladeId: SNOW_BLADE_OPTIONS.some((option) => option.id === saved.bladeId) ? saved.bladeId : defaults.bladeId,
-      audioId: SNOW_AUDIO_OPTIONS.some((option) => option.id === saved.audioId)
+      bladeId: availableBladeOptions.some((option) => option.id === saved.bladeId) ? saved.bladeId : defaults.bladeId,
+      audioId: availableAudioOptions.some((option) => option.id === saved.audioId)
         ? saved.audioId
         : defaults.audioId,
       timerEnd,
@@ -149,17 +159,19 @@ function App() {
   const [settings, setSettings] = useState<FanSettings>(readSettings);
   const [screen, setScreen] = useState<Screen>("fan");
   const [now, setNow] = useState(Date.now());
-  const [widgetStates, setWidgetStates] = useState<Record<WidgetKind, boolean>>({ duet: false });
+  const [widgetStates, setWidgetStates] = useState<Record<WidgetKind, boolean>>({ lanfeng: false, xuelang: false, duet: false });
   const [widgetBusy, setWidgetBusy] = useState<WidgetKind | null>(null);
+  const [widgetMessage, setWidgetMessage] = useState("");
+  const [widgetMessageKind, setWidgetMessageKind] = useState<WidgetKind | null>(null);
   const selectedSpeed = SPEEDS.find((option) => option.value === settings.speed) ?? SPEEDS[1];
-  const selectedBlade = SNOW_BLADE_OPTIONS.find((option) => option.id === settings.bladeId) ?? SNOW_BLADE_OPTIONS[0];
-  const selectedAudio = SNOW_AUDIO_OPTIONS.find((option) => option.id === settings.audioId) ?? SNOW_AUDIO_OPTIONS[0];
+  const selectedBlade = availableBladeOptions.find((option) => option.id === settings.bladeId) ?? availableBladeOptions[0];
+  const selectedAudio = availableAudioOptions.find((option) => option.id === settings.audioId) ?? availableAudioOptions[0];
   const snowBladeFiles = selectedBlade.id === "xuelang-2"
     ? ["xuelang-blade-2.png", "xuelang-blade-1.png"]
     : ["xuelang-blade-1.png", "xuelang-blade-2.png"];
-  const widgetAudioOptions = SNOW_AUDIO_OPTIONS;
+  const widgetAudioOptions = availableAudioOptions;
   const remaining = settings.timerEnd ? Math.max(0, settings.timerEnd - now) : 0;
-  const audio = useFanAudio(settings.isOn, settings.muted, audioUrl(selectedAudio.file));
+  const audio = useFanAudio(settings.isOn, settings.muted, audioUrl(selectedAudio.file), selectedAudio.brand);
 
   useEffect(() => {
     document.documentElement.classList.add("snow-document");
@@ -336,6 +348,36 @@ function App() {
     }
   }
 
+  async function addWidget(kind: WidgetKind) {
+    if (widgetBusy) return;
+    setWidgetMessageKind(kind);
+    setWidgetMessage("");
+    if (!isMobilePlatform) {
+      if (!("__TAURI_INTERNALS__" in window)) {
+        setWidgetMessage("请在造雪机软件内添加桌面小组件。");
+        return;
+      }
+      await toggleDesktopWidget(kind);
+      return;
+    }
+
+    setWidgetBusy(kind);
+    try {
+      const result = await requestPinWidget(kind);
+      if (!result.supported) {
+        setWidgetMessage("当前桌面不支持直接添加。请长按桌面空白处，打开“小组件”，找到“造雪机”后拖动添加。");
+      } else if (result.ok) {
+        setWidgetMessage("请在系统弹窗中确认添加。若未显示弹窗，可长按桌面空白处，从“小组件”中添加造雪机。");
+      } else {
+        setWidgetMessage(result.error || "系统未能打开添加界面，请从桌面的小组件列表添加。");
+      }
+    } catch (error) {
+      setWidgetMessage(error instanceof Error ? error.message : "添加失败，请重试。");
+    } finally {
+      setWidgetBusy(null);
+    }
+  }
+
   function renderUtilityBar() {
     return (
       <div className="utility-bar">
@@ -352,10 +394,10 @@ function App() {
     );
   }
 
-  function renderPageHeader(title: string, showBackIcon = true) {
+  function renderPageHeader(title: string, showBackIcon = true, backTo: Screen = "fan") {
     return (
       <div className="subpage-header">
-        <button type="button" className="back-button" onClick={() => setScreen("fan")} aria-label="返回造雪机">
+        <button type="button" className="back-button" onClick={() => setScreen(backTo)} aria-label={backTo === "settings" ? "返回设置" : "返回造雪机"}>
           {showBackIcon && <ArrowLeft size={21} />}
           <span>返回</span>
         </button>
@@ -369,6 +411,10 @@ function App() {
     return (
       <div className="subpage settings-page">
         {renderPageHeader("设置", false)}
+        <button type="button" className="widget-library-entry" onClick={() => setScreen("widgets")}>
+          <span><strong>小组件库</strong><small>岚峰、雪狼与双风扇，添加到桌面独立控制</small></span>
+          <span className="widget-library-link">打开</span>
+        </button>
         <section className="settings-card" aria-labelledby="audio-setting-title">
           <div className="settings-heading">
             <div>
@@ -425,7 +471,7 @@ function App() {
             <div className="widget-switch-row" key={kind}>
               <div>
                 <strong>{WIDGET_LABELS[kind]}</strong>
-                <p>同时显示两位雪狼歌姬</p>
+                <p>{kind === "duet" ? "播放合唱歌曲" : "播放对应的独占音频"}</p>
               </div>
               <button
                 type="button"
@@ -472,12 +518,49 @@ function App() {
     );
   }
 
+  function renderWidgetLibrary() {
+    return (
+      <div className="subpage widget-library-page">
+        {renderPageHeader("小组件库", false, "settings")}
+        <p className="widget-library-description">
+          {isMobilePlatform ? "选择一种风扇，添加到手机桌面。每个小组件的开关和音频独立设置。" : "选择一种风扇，在桌面独立控制开关和音频。"}
+        </p>
+        <div className="widget-library-list">
+          {WIDGET_KINDS.map((kind) => (
+            <section className="widget-library-item" aria-labelledby={`widget-title-${kind}`} key={kind}>
+              <div className="widget-preview" aria-hidden="true">
+                <div className="widget-preview-fans">
+                  {kind !== "xuelang" && <FanDisplay brand="lanfeng" isOn={false} rpm={0} oscillating={false} bladeFile="blade-1.png" hubFile="hub-new.png" />}
+                  {kind !== "lanfeng" && <FanDisplay brand="xuelang" isOn={false} rpm={0} oscillating={false} bladeFile="xuelang-blade-1.png" hubFile="xuelang-hub.png" />}
+                </div>
+                <div className="widget-preview-controls">开关 · 风速 · 摇头 · 静音</div>
+              </div>
+              <h2 id={`widget-title-${kind}`}>{WIDGET_LABELS[kind]}</h2>
+              <p>{kind === "duet" ? "两个小风扇，共同播放合唱歌曲" : kind === "lanfeng" ? "播放岚峰独占音频" : "播放雪狼独占音频"}</p>
+              <button
+                type="button"
+                className="widget-add-button"
+                aria-label={`${!isMobilePlatform && widgetStates[kind] ? "关闭" : "添加"}${WIDGET_LABELS[kind]}小组件`}
+                disabled={widgetBusy !== null}
+                onClick={() => void addWidget(kind)}
+              >
+                {widgetBusy === kind ? "正在打开…" : !isMobilePlatform && widgetStates[kind] ? "关闭小组件" : "添加到桌面"}
+              </button>
+              <p className="widget-library-message" role="status">{widgetMessageKind === kind ? widgetMessage : ""}</p>
+            </section>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
       <div className={`app-shell snow-app ${isWidgetMode ? "widget-shell" : ""}`}>
         <main aria-label={APP_NAME}>
         {!isWidgetMode && screen === "fan" && renderUtilityBar()}
         {!isWidgetMode && screen === "settings" && renderSettings()}
         {!isWidgetMode && screen === "about" && renderAbout()}
+        {!isWidgetMode && screen === "widgets" && renderWidgetLibrary()}
         {(isWidgetMode || screen === "fan") && <>
           {isWidgetMode && <div
             className="widget-drag-strip"
@@ -485,8 +568,8 @@ function App() {
             role="presentation"
             onPointerDown={() => void startWidgetDrag()}
           />}
-          <section className="fan-stage is-dual" aria-label="造雪机双歌姬">
-          <FanDisplay
+          <section className={`fan-stage ${!widgetKind || widgetKind === "duet" ? "is-dual" : ""}`} aria-label={widgetKind ? WIDGET_LABELS[widgetKind] : "造雪机双歌姬"}>
+          {!widgetKind ? <><FanDisplay
             brand="xuelang"
             isOn={settings.isOn}
             rpm={selectedSpeed.rpm}
@@ -501,7 +584,24 @@ function App() {
             oscillating={settings.oscillating}
             bladeFile={snowBladeFiles[1]}
             hubFile="xuelang-hub.png"
-          />
+          /></> : <>
+          {widgetKind !== "xuelang" && <FanDisplay
+            brand="lanfeng"
+            isOn={settings.isOn}
+            rpm={selectedSpeed.rpm}
+            oscillating={settings.oscillating}
+            bladeFile={selectedBlade.id.startsWith("xuelang-") ? "blade-1.png" : selectedBlade.file}
+            hubFile="hub-new.png"
+          />}
+          {widgetKind !== "lanfeng" && <FanDisplay
+            brand="xuelang"
+            isOn={settings.isOn}
+            rpm={selectedSpeed.rpm}
+            oscillating={settings.oscillating}
+            bladeFile={selectedBlade.id.startsWith("xuelang-") ? selectedBlade.file : "xuelang-blade-1.png"}
+            hubFile="xuelang-hub.png"
+          />}
+          </>}
           </section>
 
         <div className="controls">

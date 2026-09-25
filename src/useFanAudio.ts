@@ -1,146 +1,173 @@
 import { useEffect, useRef } from "react";
+import type { FanBrand } from "./mediaCatalog";
 
-type TrackName = "start" | "stop" | "running";
-
-type TrackSet = Record<TrackName, HTMLAudioElement>;
+type PowerTrackName = "start" | "stop";
+type TrackSet = {
+  start: HTMLAudioElement[];
+  stop: HTMLAudioElement[];
+  running: HTMLAudioElement;
+};
+type AudioSession = {
+  brand: FanBrand;
+  runningUrl: string;
+  tracks: TrackSet;
+};
 
 export type FanAudioControls = {
   playPowerOn: () => void;
   playPowerOff: () => void;
 };
 
-const TRACK_URLS: Record<TrackName, string> = {
-  start: "/audio/start.mp3",
-  stop: "/audio/stop.mp3",
-  running: "/audio/running.mp3",
+const POWER_TRACK_URLS = {
+  lanfeng: { start: "/audio/start.mp3", stop: "/audio/stop.mp3" },
+  xuelang: { start: "/audio/xuelang-start.mp3", stop: "/audio/xuelang-stop.mp3" },
 };
 
-function createTracks(runningUrl: string): TrackSet {
-  const tracks = {} as TrackSet;
-  (Object.keys(TRACK_URLS) as TrackName[]).forEach((name) => {
-    const track = new Audio(name === "running" ? runningUrl : TRACK_URLS[name]);
-    track.preload = "auto";
-    track.volume = name === "running" ? 0.36 : 0.65;
-    track.loop = name === "running";
-    tracks[name] = track;
-  });
-  return tracks;
+function createTrack(url: string, volume: number, loop = false) {
+  const track = new Audio(url);
+  track.preload = "auto";
+  track.volume = volume;
+  track.loop = loop;
+  return track;
+}
+
+function createTracks(runningUrl: string, brand: FanBrand): TrackSet {
+  const brands = brand === "chorus" ? ["lanfeng", "xuelang"] as const : [brand];
+  const volume = 0.65 / Math.sqrt(brands.length);
+  return {
+    start: brands.map((name) => createTrack(POWER_TRACK_URLS[name].start, volume)),
+    stop: brands.map((name) => createTrack(POWER_TRACK_URLS[name].stop, volume)),
+    running: createTrack(runningUrl, 0.36, true),
+  };
 }
 
 function safelyPlay(track: HTMLAudioElement) {
-  const playPromise = track.play();
-  if (playPromise) void playPromise.catch(() => undefined);
+  try {
+    const playPromise = track.play();
+    if (playPromise) void playPromise.catch(() => undefined);
+  } catch {
+    // Older WebViews can reject playback synchronously before media is ready.
+  }
 }
 
-export function useFanAudio(isOn: boolean, muted: boolean, runningUrl: string): FanAudioControls {
-  const tracksRef = useRef<TrackSet | null>(null);
-  const isOnRef = useRef(isOn);
-  const mutedRef = useRef(muted);
-  const runningUrlRef = useRef(runningUrl);
-  const activeAudioRef = useRef(false);
-  const previousPowerRef = useRef(isOn);
+function resetTrack(track: HTMLAudioElement) {
+  track.pause();
+  track.currentTime = 0;
+}
+
+function allTracks(tracks: TrackSet) {
+  return [...tracks.start, ...tracks.stop, tracks.running];
+}
+
+function releaseTracks(tracks: TrackSet) {
+  allTracks(tracks).forEach((track) => {
+    track.muted = true;
+    track.pause();
+    track.removeAttribute("src");
+    track.load();
+  });
+}
+
+export function useFanAudio(
+  isOn: boolean,
+  muted: boolean,
+  runningUrl: string,
+  brand: FanBrand = "lanfeng",
+): FanAudioControls {
+  const sessionRef = useRef<AudioSession | null>(null);
+  const settingsRef = useRef({ isOn, muted, runningUrl, brand });
+  settingsRef.current = { isOn, muted, runningUrl, brand };
 
   function tracks() {
-    if (!tracksRef.current) tracksRef.current = createTracks(runningUrlRef.current);
-    return tracksRef.current;
+    const settings = settingsRef.current;
+    let session = sessionRef.current;
+    if (session && session.brand !== settings.brand) {
+      releaseTracks(session.tracks);
+      session = null;
+    }
+    if (!session) {
+      session = {
+        brand: settings.brand,
+        runningUrl: settings.runningUrl,
+        tracks: createTracks(settings.runningUrl, settings.brand),
+      };
+      sessionRef.current = session;
+    } else if (session.runningUrl !== settings.runningUrl) {
+      resetTrack(session.tracks.running);
+      session.tracks.running.src = settings.runningUrl;
+      session.tracks.running.load();
+      session.runningUrl = settings.runningUrl;
+    }
+    return session.tracks;
   }
 
   function stopRunning() {
-    const running = tracks().running;
-    running.pause();
-    running.currentTime = 0;
-    activeAudioRef.current = false;
+    const running = sessionRef.current?.tracks.running;
+    if (running) resetTrack(running);
+  }
+
+  function pauseAll() {
+    const audio = sessionRef.current?.tracks;
+    if (!audio) return;
+    [...audio.start, ...audio.stop].forEach(resetTrack);
+    audio.running.pause();
   }
 
   function startRunning() {
-    if (mutedRef.current || !isOnRef.current) return;
+    const settings = settingsRef.current;
+    if (settings.muted || !settings.isOn || document.hidden) return;
     const running = tracks().running;
-    running.loop = true;
     if (running.paused) safelyPlay(running);
-    activeAudioRef.current = true;
   }
 
-  function playOneShot(name: "start" | "stop") {
-    if (mutedRef.current) return;
-    const track = tracks()[name];
-    track.pause();
-    track.currentTime = 0;
-    safelyPlay(track);
+  function playOneShot(name: PowerTrackName) {
+    if (settingsRef.current.muted || document.hidden) return;
+    const audio = tracks();
+    // Stop the preceding power sound when the switch is pressed again quickly.
+    [...audio.start, ...audio.stop].forEach(resetTrack);
+    audio[name].forEach(safelyPlay);
   }
 
   function playPowerOn() {
+    settingsRef.current.isOn = true;
     playOneShot("start");
     startRunning();
   }
 
   function playPowerOff() {
-    playOneShot("stop");
+    settingsRef.current.isOn = false;
     stopRunning();
+    playOneShot("stop");
   }
 
   useEffect(() => {
-    isOnRef.current = isOn;
+    const session = sessionRef.current;
+    if (session && session.brand !== brand) {
+      releaseTracks(session.tracks);
+      sessionRef.current = null;
+    }
+    if (muted || document.hidden) pauseAll();
     if (isOn) startRunning();
     else stopRunning();
-  }, [isOn]);
-
-  useEffect(() => {
-    mutedRef.current = muted;
-    if (muted) {
-      const audio = tracksRef.current;
-      audio?.start.pause();
-      audio?.stop.pause();
-      audio?.running.pause();
-      activeAudioRef.current = false;
-    } else if (isOn) {
-      startRunning();
-    }
-  }, [isOn, muted]);
-
-  useEffect(() => {
-    if (runningUrlRef.current === runningUrl) return;
-    runningUrlRef.current = runningUrl;
-    const running = tracksRef.current?.running;
-    if (!running) return;
-    running.pause();
-    running.src = runningUrl;
-    running.load();
-    activeAudioRef.current = false;
-    if (isOnRef.current && !mutedRef.current) startRunning();
-  }, [runningUrl]);
+    // Power sounds are played only by the switch handler, never twice by effects.
+  }, [isOn, muted, runningUrl, brand]);
 
   useEffect(() => {
     function handleVisibility() {
-      if (document.hidden) {
-        tracksRef.current?.running.pause();
-        activeAudioRef.current = false;
-      } else if (isOnRef.current && !mutedRef.current) {
-        startRunning();
-      }
+      if (document.hidden) pauseAll();
+      else startRunning();
     }
 
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, []);
-
-  useEffect(() => {
-    const powerChanged = previousPowerRef.current !== isOn;
-    previousPowerRef.current = isOn;
-    if (!powerChanged) return;
-
-    // The click handler plays the one shot. This effect only keeps the loop aligned
-    // for timer shutdowns and restored app state.
-    if (isOn) startRunning();
-    else stopRunning();
-  }, [isOn]);
-
-  useEffect(() => () => {
-    const audio = tracksRef.current;
-    if (!audio) return;
-    Object.values(audio).forEach((track) => {
-      track.pause();
-      track.src = "";
-    });
+    window.addEventListener("pagehide", pauseAll);
+    window.addEventListener("pageshow", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", pauseAll);
+      window.removeEventListener("pageshow", handleVisibility);
+      if (sessionRef.current) releaseTracks(sessionRef.current.tracks);
+      sessionRef.current = null;
+    };
   }, []);
 
   return { playPowerOn, playPowerOff };
