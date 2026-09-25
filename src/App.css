@@ -297,6 +297,18 @@ main {
   background: transparent;
   box-shadow: none;
 }
+.widget-document,
+.widget-body,
+.widget-body #root,
+.widget-shell {
+  height: 100%;
+  min-height: 0;
+}
+.widget-document,
+.widget-body,
+.widget-body #root {
+  overflow: hidden;
+}
 .widget-drag-strip {
   position: absolute;
   inset: 0 0 auto;
@@ -310,9 +322,13 @@ main {
 .widget-body,
 .widget-body #root,
 .widget-shell main { background: transparent; }
-.widget-shell main { padding-top: 14px; padding-bottom: 14px; }
-.widget-shell .fan-stage { padding-top: 0; }
-.widget-shell .fan-assembly { --head-size: min(calc(100vw - 34px), 340px); }
+.widget-shell main { min-height: 0; padding-top: 14px; padding-bottom: 14px; }
+.widget-shell .fan-stage { flex: none; padding-top: 0; }
+.widget-shell .fan-assembly {
+  /* Reserve room for the stand (50px), controls (204px), gap (16px),
+     and window padding (28px), plus 2px for rounding. */
+  --head-size: min(calc(100vw - 34px), calc(100vh - 300px), 340px);
+}
 .widget-shell .fan-stage.is-dual {
   justify-content: center;
   gap: 10px;
@@ -320,12 +336,12 @@ main {
   padding-right: 10px;
 }
 .widget-shell .fan-stage.is-dual .fan-assembly {
-  --head-size: min(calc(50vw - 28px), 220px);
+  --head-size: min(calc(50vw - 28px), calc(100vh - 300px), 220px);
   width: var(--head-size);
   min-width: var(--head-size);
   flex: 0 1 var(--head-size);
 }
-.widget-shell .controls { margin-top: 16px; padding-left: 14px; padding-right: 14px; }
+.widget-shell .controls { flex: none; margin-top: 16px; padding-left: 14px; padding-right: 14px; }
 
 .widget-switch-row {
   display: flex;
