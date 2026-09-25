@@ -199,10 +199,36 @@ main {
 }
 
 .fan-stage {
+  position: relative;
   padding: 12px 0 0;
   display: flex;
   justify-content: center;
   animation: stage-enter 500ms var(--ease-out) both;
+}
+
+.snowfall {
+  position: absolute;
+  inset: 8% 0 18%;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+.snowfall span {
+  position: absolute;
+  top: -22px;
+  left: var(--snow-x);
+  color: #79aee8;
+  font-size: 17px;
+  line-height: 1;
+  opacity: 0;
+  filter: drop-shadow(0 1px 1px rgba(67, 121, 191, .18));
+  animation: snowfall-fall var(--snow-duration) linear var(--snow-delay) infinite;
+}
+@keyframes snowfall-fall {
+  0% { opacity: 0; transform: translate3d(-4px, 0, 0) rotate(0deg); }
+  12% { opacity: .9; }
+  82% { opacity: .75; }
+  100% { opacity: 0; transform: translate3d(9px, 190px, 0) rotate(120deg); }
 }
 .fan-stage.is-dual {
   box-sizing: border-box;

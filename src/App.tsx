@@ -68,6 +68,7 @@ const availableAudioOptions = widgetKind
   ? AUDIO_OPTIONS.filter((option) => option.brand === (widgetKind === "duet" ? "chorus" : widgetKind))
   : SNOW_AUDIO_OPTIONS;
 const availableBladeOptions = isWidgetMode ? BLADE_OPTIONS : SNOW_BLADE_OPTIONS;
+const SNOWFLAKES = ["❄️", "❄", "✦", "❄️", "✧", "❄", "❅", "❄️"];
 
 function defaultAudioForWidget(): string {
   return availableAudioOptions[0]?.id ?? "xuelang-01";
@@ -572,26 +573,18 @@ function App() {
             onPointerDown={() => void startWidgetDrag()}
           />}
           <section
-            className={`fan-stage ${!widgetKind || widgetKind === "duet" ? "is-dual" : ""}`}
-            aria-label={widgetKind ? WIDGET_LABELS[widgetKind] : "造雪机双歌姬"}
+            className={`fan-stage ${widgetKind === "duet" ? "is-dual" : ""}`}
+            aria-label={widgetKind ? WIDGET_LABELS[widgetKind] : "造雪机"}
             onPointerDown={isWidgetMode ? () => void startWidgetDrag() : undefined}
           >
-          {!widgetKind ? <><FanDisplay
+          {!widgetKind ? <FanDisplay
             brand="xuelang"
             isOn={settings.isOn}
             rpm={selectedSpeed.rpm}
             oscillating={settings.oscillating}
             bladeFile={snowBladeFiles[0]}
             hubFile="xuelang-hub.png"
-          />
-          <FanDisplay
-            brand="xuelang"
-            isOn={settings.isOn}
-            rpm={selectedSpeed.rpm}
-            oscillating={settings.oscillating}
-            bladeFile={snowBladeFiles[1]}
-            hubFile="xuelang-hub.png"
-          /></> : <>
+          /> : <>
           {widgetKind !== "xuelang" && <FanDisplay
             brand="lanfeng"
             isOn={settings.isOn}
@@ -609,6 +602,16 @@ function App() {
             hubFile="xuelang-hub.png"
           />}
           </>}
+          {!isWidgetMode && settings.isOn && <div className="snowfall" aria-label="正在下雪" role="img">
+            {SNOWFLAKES.map((flake, index) => <span
+              key={`${flake}-${index}`}
+              style={{
+                "--snow-x": `${8 + index * 12}%`,
+                "--snow-delay": `${(index % 4) * 0.55}s`,
+                "--snow-duration": `${2.8 + (index % 3) * 0.7}s`,
+              } as CSSProperties}
+            >{flake}</span>)}
+          </div>}
           </section>
 
         <div className="controls">
