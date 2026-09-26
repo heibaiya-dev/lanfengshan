@@ -1,7 +1,7 @@
 {
   "name": "dianfengshan",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.0-bugfixv1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,8 @@
     "tauri": "tauri",
     "android:apk": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1",
     "android:apk:armv7": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1 -Architecture armv7",
+    "android:debug": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1 -Debug",
+    "android:debug:armv7": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1 -Debug -Architecture armv7",
     "android:release": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android.ps1",
     "android:dev": "tauri android dev"
   },

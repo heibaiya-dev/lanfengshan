@@ -1,6 +1,6 @@
 [package]
 name = "dianfengshan"
-version = "1.1.0"
+version = "1.1.0-bugfixv1"
 description = "电峰扇"
 authors = []
 edition = "2021"

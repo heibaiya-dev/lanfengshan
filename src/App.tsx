@@ -18,6 +18,7 @@ import { AUDIO_OPTIONS, audioBrandLabel, audioUrl, BLADE_OPTIONS, type FanBrand 
 import { useFanAudio } from "./useFanAudio";
 import { useFanMotor } from "./useFanMotor";
 import { requestPinWidget, type WidgetKind } from "./androidWidgets";
+import { exportDiagnostics, requestDiagnostics, type DiagnosticsReport } from "./androidDiagnostics";
 import "./App.css";
 
 type Speed = 1 | 2 | 3;
@@ -33,7 +34,9 @@ type FanSettings = {
   timerMinutes: number;
 };
 
-type Screen = "fan" | "settings" | "about" | "widgets";
+type Screen = "fan" | "settings" | "about" | "widgets" | "diagnostics";
+
+const isDebugBuild = import.meta.env.VITE_DEBUG_BUILD === "1";
 
 const SPEEDS: { value: Speed; label: string; rpm: number }[] = [
   { value: 1, label: "柔和", rpm: 90 },
@@ -161,6 +164,11 @@ function App() {
   const [widgetBusy, setWidgetBusy] = useState<WidgetKind | null>(null);
   const [widgetMessage, setWidgetMessage] = useState("");
   const [widgetMessageKind, setWidgetMessageKind] = useState<WidgetKind | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+  const [diagnosticsError, setDiagnosticsError] = useState("");
+  const [diagnosticsExporting, setDiagnosticsExporting] = useState(false);
+  const [diagnosticsMessage, setDiagnosticsMessage] = useState("");
   const selectedSpeed = SPEEDS.find((option) => option.value === settings.speed) ?? SPEEDS[1];
   const selectedBlade = BLADE_OPTIONS.find((option) => option.id === settings.bladeId) ?? BLADE_OPTIONS[0];
   const selectedAudio = AUDIO_OPTIONS.find((option) => option.id === settings.audioId) ?? AUDIO_OPTIONS[0];
@@ -499,7 +507,7 @@ function App() {
         <div className="about-hero">
           <div className="about-logo-wrap"><img src="/assets/hub-new.png" alt="电峰扇图标" /></div>
           <h2>电峰扇</h2>
-          <span className="version-badge">VERSION 1.1</span>
+          <span className="version-badge">VERSION 1.1-bugfixv1</span>
         </div>
         <div className="credits-card">
           <p>由 <strong>Heibai</strong>（程序）</p>
@@ -511,6 +519,68 @@ function App() {
           <span><strong>GitHub 仓库</strong><small>heibaiya-dev/lanfengshan</small></span>
           <ExternalLink size={17} />
         </a>
+      </div>
+    );
+  }
+
+  async function loadDiagnostics() {
+    setDiagnosticsLoading(true);
+    setDiagnosticsError("");
+    try {
+      setDiagnostics(await requestDiagnostics());
+    } catch (error) {
+      setDiagnosticsError(error instanceof Error ? error.message : "设备信息读取失败。\n");
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }
+
+  async function handleExportDiagnostics() {
+    setDiagnosticsExporting(true);
+    setDiagnosticsError("");
+    setDiagnosticsMessage("");
+    try {
+      const report = await requestDiagnostics();
+      setDiagnostics(report);
+      const result = await exportDiagnostics(report);
+      setDiagnosticsMessage(result.message);
+    } catch (error) {
+      setDiagnosticsError(error instanceof Error ? error.message : "日志导出失败。\n");
+    } finally {
+      setDiagnosticsExporting(false);
+    }
+  }
+
+  function renderDiagnostics() {
+    return (
+      <div className="subpage diagnostics-page">
+        {renderPageHeader("调试信息")}
+        <p className="diagnostics-description">用于反馈兼容性问题，包含设备、WebView 和本次运行日志。</p>
+        <div className="diagnostics-actions">
+          <button type="button" className="diagnostics-refresh" onClick={() => void loadDiagnostics()} disabled={diagnosticsLoading || diagnosticsExporting}>
+            {diagnosticsLoading ? "正在读取…" : diagnostics ? "重新读取" : "读取设备信息"}
+          </button>
+          <button type="button" className="diagnostics-export" onClick={() => void handleExportDiagnostics()} disabled={diagnosticsLoading || diagnosticsExporting}>
+            {diagnosticsExporting ? "正在导出…" : "导出日志并分享"}
+          </button>
+        </div>
+        {diagnosticsError && <p className="diagnostics-error" role="alert">{diagnosticsError}</p>}
+        {diagnosticsMessage && <p className="diagnostics-message" role="status">{diagnosticsMessage}</p>}
+        {diagnostics && <>
+          <section className="diagnostics-card" aria-labelledby="diagnostics-device-title">
+            <h2 id="diagnostics-device-title">设备信息</h2>
+            <dl>{Object.entries(diagnostics.device).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>
+          </section>
+          <section className="diagnostics-card" aria-labelledby="diagnostics-webview-title">
+            <h2 id="diagnostics-webview-title">WebView</h2>
+            <dl>{Object.entries(diagnostics.webView).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>
+          </section>
+          <section className="diagnostics-card diagnostics-log-card" aria-labelledby="diagnostics-log-title">
+            <h2 id="diagnostics-log-title">日志</h2>
+            <pre>{[diagnostics.nativeLogs, "--- 前端日志 ---", diagnostics.frontendLogs || "暂无前端日志"].join("\n")}</pre>
+          </section>
+          <p className="diagnostics-captured-at">读取时间：{diagnostics.capturedAt}</p>
+        </>}
       </div>
     );
   }
@@ -554,10 +624,14 @@ function App() {
   return (
       <div className={`app-shell ${isWidgetMode ? "widget-shell" : ""}`}>
         <main aria-label="电峰扇">
-        {!isWidgetMode && screen === "fan" && renderUtilityBar()}
+        {!isWidgetMode && screen === "fan" && <>
+          {renderUtilityBar()}
+          {isDebugBuild && <button type="button" className="debug-entry-button" onClick={() => { setScreen("diagnostics"); void loadDiagnostics(); }}>调试信息</button>}
+        </>}
         {!isWidgetMode && screen === "settings" && renderSettings()}
         {!isWidgetMode && screen === "about" && renderAbout()}
         {!isWidgetMode && screen === "widgets" && renderWidgetLibrary()}
+        {!isWidgetMode && screen === "diagnostics" && renderDiagnostics()}
         {(isWidgetMode || screen === "fan") && <>
           {isWidgetMode && <div
             className="widget-drag-strip"

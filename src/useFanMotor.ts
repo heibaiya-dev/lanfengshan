@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+const isDebugBuild = import.meta.env.VITE_DEBUG_BUILD === "1";
+
 const ACCEL_RESPONSE_MS = 400;
 const COAST_DURATION_MS = 1800;
 const MAX_FRAME_MS = 50;
@@ -12,6 +14,7 @@ type MotorState = {
   coastElapsedMs: number;
   lastFrameTime: number | null;
   frameId: number | null;
+  frameKind: "raf" | "timeout" | null;
   reducedMotion: boolean;
   wasOn: boolean;
   schedule: (() => void) | null;
@@ -27,6 +30,7 @@ export function useFanMotor(isOn: boolean, rpm: number) {
     coastElapsedMs: 0,
     lastFrameTime: null,
     frameId: null,
+    frameKind: null,
     reducedMotion: false,
     wasOn: false,
     schedule: null,
@@ -36,11 +40,24 @@ export function useFanMotor(isOn: boolean, rpm: number) {
     const motor = motorRef.current;
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
     motor.reducedMotion = motionPreference.matches;
+    if (isDebugBuild) {
+      console.info("fan-motor:init", {
+        reducedMotion: motor.reducedMotion,
+        requestAnimationFrame: typeof window.requestAnimationFrame === "function",
+        documentHidden: document.hidden,
+        rotorMounted: rotorRef.current !== null,
+      });
+    }
 
     function cancelFrame() {
       if (motor.frameId !== null) {
-        window.cancelAnimationFrame(motor.frameId);
+        if (motor.frameKind === "raf") {
+          window.cancelAnimationFrame(motor.frameId);
+        } else {
+          window.clearTimeout(motor.frameId);
+        }
         motor.frameId = null;
+        motor.frameKind = null;
       }
       motor.lastFrameTime = null;
     }
@@ -48,16 +65,23 @@ export function useFanMotor(isOn: boolean, rpm: number) {
     function schedule() {
       if (
         motor.frameId === null &&
-        !motor.reducedMotion &&
         !document.hidden &&
         (motor.targetVelocity > 0 || motor.velocity > 0)
       ) {
-        motor.frameId = window.requestAnimationFrame(frame);
+        if (typeof window.requestAnimationFrame === "function") {
+          motor.frameKind = "raf";
+          motor.frameId = window.requestAnimationFrame(frame);
+        } else {
+          // Keep older Android WebViews moving when RAF is unavailable.
+          motor.frameKind = "timeout";
+          motor.frameId = window.setTimeout(() => frame(performance.now()), 16);
+        }
       }
     }
 
     function frame(now: number) {
       motor.frameId = null;
+      motor.frameKind = null;
       const elapsedMs = motor.lastFrameTime === null
         ? 0
         : Math.min(Math.max(now - motor.lastFrameTime, 0), MAX_FRAME_MS);
@@ -98,13 +122,9 @@ export function useFanMotor(isOn: boolean, rpm: number) {
 
     function onMotionPreferenceChange(event: MediaQueryListEvent) {
       motor.reducedMotion = event.matches;
-      if (event.matches) {
-        cancelFrame();
-        motor.velocity = 0;
-        motor.coastStartVelocity = 0;
-      } else {
-        schedule();
-      }
+      // Reduced-motion affects decorative motion such as head oscillation. The
+      // rotor is the primary fan state and must continue to show its speed.
+      schedule();
     }
 
     motor.schedule = schedule;
@@ -141,6 +161,14 @@ export function useFanMotor(isOn: boolean, rpm: number) {
     }
 
     motor.wasOn = isOn;
+    if (isDebugBuild) {
+      console.info("fan-motor:state", {
+        isOn,
+        rpm,
+        targetVelocity: motor.targetVelocity,
+        documentHidden: document.hidden,
+      });
+    }
     motor.schedule?.();
   }, [isOn, rpm]);
 

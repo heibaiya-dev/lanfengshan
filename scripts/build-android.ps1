@@ -1,6 +1,7 @@
 param(
     [ValidateSet("aarch64", "armv7")]
-    [string]$Architecture = "aarch64"
+    [string]$Architecture = "aarch64",
+    [switch]$Debug
 )
 
 $ErrorActionPreference = "Stop"
@@ -58,9 +59,15 @@ $env:TMP = $tempDir
 $env:CARGO_ENCODED_RUSTFLAGS = @("--sysroot", $sysrootAlias, "-Clink-arg=--target=$($architectureConfig.clangTarget)24") -join [char]31
 Set-Item -Path "Env:$($architectureConfig.linkerVariable)" -Value $clang
 
+$buildFlavor = if ($Debug) { "debug" } else { "release" }
+$expectedPackage = "com.heibai.hyw.lanfengshan"
+$buildArgs = @("--target", $Architecture, "--apk", "--ci")
+if ($Debug) { $buildArgs = @("--debug") + $buildArgs }
+
 Push-Location $projectRoot
 try {
-    & npx tauri android build --target $Architecture --apk --ci @args
+    $env:VITE_DEBUG_BUILD = if ($Debug) { "1" } else { "0" }
+    & npx tauri android build @buildArgs @args
     $buildExitCode = $LASTEXITCODE
     if ($buildExitCode -ne 0) {
         exit $buildExitCode
@@ -68,7 +75,7 @@ try {
 
     $apkRoot = Join-Path $projectRoot "src-tauri\gen\android\app\build\outputs\apk"
     $releaseApk = Get-ChildItem -LiteralPath $apkRoot -Recurse -Filter "*.apk" |
-        Where-Object { $_.FullName -match "\\release\\" } |
+        Where-Object { $_.FullName -match "\\$buildFlavor\\" } |
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
     if (-not $releaseApk) {
@@ -77,7 +84,7 @@ try {
 
     $releaseDir = Join-Path $projectRoot "releases"
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-    $deliverable = Join-Path $releaseDir "lanfengshan-$appVersion-$($architectureConfig.abi)-release.apk"
+    $deliverable = Join-Path $releaseDir "lanfengshan-$appVersion-$($architectureConfig.abi)-$buildFlavor.apk"
     Copy-Item -LiteralPath $releaseApk.FullName -Destination $deliverable -Force
 
     $buildTools = Get-ChildItem -LiteralPath (Join-Path $env:ANDROID_HOME "build-tools") -Directory |
@@ -89,13 +96,13 @@ try {
         throw "apksigner rejected the release APK."
     }
     $badging = (& $aapt dump badging $deliverable) -join [Environment]::NewLine
-    if ($badging -notmatch "package: name='com\.heibai\.hyw\.lanfengshan'") {
-        throw "The release APK package identifier is not com.heibai.hyw.lanfengshan."
+    if ($badging -notmatch "package: name='$([regex]::Escape($expectedPackage))'") {
+        throw "The Android APK package identifier is not $expectedPackage."
     }
     if ($badging -notmatch "native-code:.*$($architectureConfig.abi)") {
         throw "The release APK does not contain the $($architectureConfig.abi) native library."
     }
-    if ($badging -match "application-debuggable") {
+    if (-not $Debug -and $badging -match "application-debuggable") {
         throw "The release APK is marked debuggable."
     }
     $manifestTree = (& $aapt dump xmltree $deliverable AndroidManifest.xml) -join [Environment]::NewLine
